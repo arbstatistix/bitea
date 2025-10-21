@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bitea - Blockchain Social Media</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-brand">
+                <h1>⛓️ Bitea</h1>
+                <span class="tagline">Decentralized Social Media</span>
+            </div>
+            <div class="nav-menu" id="navMenu">
+                <a href="#" onclick="showPage('feed')" class="nav-link">Feed</a>
+                <a href="#" onclick="showPage('blockchain')" class="nav-link">Blockchain</a>
+                <a href="#" onclick="showPage('profile')" class="nav-link" id="profileLink" style="display:none;">Profile</a>
+                <a href="#" onclick="logout()" class="nav-link" id="logoutBtn" style="display:none;">Logout</a>
+                <a href="#" onclick="showPage('login')" class="nav-link" id="loginBtn">Login</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container main-content">
+        <!-- Login Page -->
+        <div id="loginPage" class="page active">
+            <div class="auth-container">
+                <div class="auth-box">
+                    <h2>Welcome to Bitea</h2>
+                    <p class="subtitle">Where your voice lives on the blockchain forever</p>
+                    
+                    <div class="tabs">
+                        <button class="tab-btn active" onclick="switchTab('login')">Login</button>
+                        <button class="tab-btn" onclick="switchTab('register')">Register</button>
+                    </div>
+
+                    <div id="loginForm" class="auth-form">
+                        <input type="text" id="loginUsername" placeholder="Username" class="input-field">
+                        <input type="password" id="loginPassword" placeholder="Password" class="input-field">
+                        <button onclick="login()" class="btn btn-primary">Login</button>
+                    </div>
+
+                    <div id="registerForm" class="auth-form" style="display:none;">
+                        <input type="text" id="registerUsername" placeholder="Username" class="input-field">
+                        <input type="email" id="registerEmail" placeholder="Email" class="input-field">
+                        <input type="password" id="registerPassword" placeholder="Password" class="input-field">
+                        <button onclick="register()" class="btn btn-primary">Register</button>
+                    </div>
+
+                    <div id="authMessage" class="message"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Feed Page -->
+        <div id="feedPage" class="page">
+            <div class="feed-container">
+                <div class="create-post-box">
+                    <h3>Create a Post</h3>
+                    <textarea id="postContent" placeholder="What's on your mind? (This will be immortalized on the blockchain...)" class="textarea-field"></textarea>
+                    <button onclick="createPost()" class="btn btn-primary">Post to Blockchain</button>
+                </div>
+
+                <div class="stats-bar">
+                    <div class="stat">
+                        <span class="stat-label">Total Posts:</span>
+                        <span id="totalPosts" class="stat-value">0</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Blockchain Blocks:</span>
+                        <span id="totalBlocks" class="stat-value">0</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Pending Transactions:</span>
+                        <span id="pendingTxs" class="stat-value">0</span>
+                    </div>
+                </div>
+
+                <div id="postsContainer" class="posts-container">
+                    <!-- Posts will be loaded here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Blockchain Page -->
+        <div id="blockchainPage" class="page">
+            <div class="blockchain-container">
+                <h2>Blockchain Explorer</h2>
+                <p class="subtitle">Transparent, immutable, and verifiable</p>
+
+                <div class="blockchain-actions">
+                    <button onclick="loadBlockchain()" class="btn btn-secondary">Refresh Blockchain</button>
+                    <button onclick="mineBlock()" class="btn btn-primary">Mine Pending Transactions</button>
+                    <button onclick="validateBlockchain()" class="btn btn-accent">Validate Chain</button>
+                </div>
+
+                <div id="blockchainStatus" class="blockchain-status"></div>
+
+                <div id="blocksContainer" class="blocks-container">
+                    <!-- Blocks will be loaded here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Profile Page -->
+        <div id="profilePage" class="page">
+            <div class="profile-container">
+                <h2>Profile</h2>
+                <div id="profileInfo" class="profile-info">
+                    <!-- Profile info will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2025 Bitea - Blockchain-Powered Social Media</p>
+            <p>Built with C++, JavaScript, MongoDB, and Redis</p>
+        </div>
+    </footer>
+
+    <script src="js/api.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
+
