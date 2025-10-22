@@ -48,18 +48,22 @@ public:
     // Getters
     std::string getUsername() const { return username; }
     std::string getEmail() const { return email; }
+    std::string getPasswordHash() const { return passwordHash; }
     std::string getDisplayName() const { return displayName; }
     std::string getBio() const { return bio; }
     const std::set<std::string>& getFollowers() const { return followers; }
     const std::set<std::string>& getFollowing() const { return following; }
     time_t getCreatedAt() const { return createdAt; }
+    time_t getJoinedAt() const { return createdAt; }
     time_t getLastLogin() const { return lastLogin; }
     int getFollowerCount() const { return followers.size(); }
+    int getFollowersCount() const { return followers.size(); }
     int getFollowingCount() const { return following.size(); }
 
     // Setters
     void setDisplayName(const std::string& name) { displayName = name; }
     void setBio(const std::string& b) { bio = b; }
+    void setPasswordHash(const std::string& hash) { passwordHash = hash; }
     void updateLastLogin() { lastLogin = std::time(nullptr); }
 
     // Password verification

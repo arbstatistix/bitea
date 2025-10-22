@@ -11,7 +11,11 @@ enum class TransactionType {
     LIKE,
     COMMENT,
     FOLLOW,
-    USER_REGISTRATION
+    USER_REGISTRATION,
+    TOPIC_CREATE,
+    TOPIC_COMMENT,
+    TOPIC_LIKE,
+    TOPIC_RESHARE
 };
 
 class Transaction {
