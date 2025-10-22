@@ -4,15 +4,46 @@ A fully functional decentralized social media application that combines blockcha
 
 ```
 
-                    🚀 BITEA PLATFORM 🚀                          
+                    [>>] BITEA PLATFORM [>>]                          
                                                                    
         Where Social Media Meets Blockchain Technology             
 
 ```
 
+## [!] IMPORTANT SECURITY NOTICE
+
+**THIS IS A DEMONSTRATION/LEARNING PROJECT - NOT PRODUCTION READY**
+
+This project is designed for educational purposes to demonstrate blockchain technology, C++ development, and full-stack architecture. **Do NOT deploy this to production without implementing proper security measures.**
+
+### Known Security Limitations:
+- [!] **Password hashing now uses salting** (improved in latest version)
+- [!] **HTTP only** - No HTTPS/TLS encryption
+- [!] **Basic input validation** - Production needs more comprehensive validation
+- [!] **No rate limiting** - Vulnerable to DDoS attacks
+- [!] **Simple JSON parsing** - Use proper JSON library for production
+- [!] **LocalStorage sessions** - Use httpOnly cookies for production
+- [!] **No account recovery** - Production needs password reset
+- [!] **Basic CORS** - Configure properly for production domains
+
+### Before Production Deployment:
+1. [+] Implement HTTPS/TLS encryption
+2. [+] Use proper JSON parsing libraries
+3. [+] Add comprehensive input sanitization
+4. [+] Implement rate limiting and DDoS protection
+5. [+] Use httpOnly cookies for session management
+6. [+] Add 2FA authentication
+7. [+] Implement proper logging and monitoring
+8. [+] Use environment variables for configuration
+9. [+] Add database authentication
+10. [+] Implement GDPR compliance (if applicable)
+
+**For Learning/Portfolio**: [+] Great!  
+**For Production**: [-] Implement security fixes first!
+
 ---
 
-## 📑 Table of Contents
+## [=] Table of Contents
 
 1. [Overview](#-overview)
 2. [System Architecture](#-system-architecture)
@@ -26,7 +57,7 @@ A fully functional decentralized social media application that combines blockcha
 
 ---
 
-## 🎯 Overview
+## [*] Overview
 
 **Bitea** is a blockchain-based social media platform where every user action (posts, likes, comments, follows) is recorded as a transaction on an immutable blockchain. The platform demonstrates:
 
@@ -38,19 +69,19 @@ A fully functional decentralized social media application that combines blockcha
 
 ### Key Features
 
-✅ User registration and authentication  
-✅ Create posts stored on blockchain  
-✅ Like and comment on posts (blockchain transactions)  
-✅ Follow/unfollow users  
-✅ Real-time feed updates  
-✅ Blockchain explorer with block inspection  
-✅ Chain validation and integrity checking  
-✅ Session management with Redis  
-✅ Document storage with MongoDB  
+[+] User registration and authentication  
+[+] Create posts stored on blockchain  
+[+] Like and comment on posts (blockchain transactions)  
+[+] Follow/unfollow users  
+[+] Real-time feed updates  
+[+] Blockchain explorer with block inspection  
+[+] Chain validation and integrity checking  
+[+] Session management with Redis  
+[+] Document storage with MongoDB  
 
 ---
 
-## 🏗️ System Architecture
+## [^] System Architecture
 
 ### High-Level Architecture Diagram
 
@@ -135,7 +166,7 @@ A fully functional decentralized social media application that combines blockcha
 
 ---
 
-## 🔄 Complete Code Flow
+## [@] Complete Code Flow
 
 ### 1. Application Startup Flow
 
@@ -205,7 +236,7 @@ main.cpp
 │  POST /api/register                             │
 │  {                                              │
 │    "username": "alice",                         │
-│    "email": "alice@email.com",                 │
+│    "email": "alice@email.com",                  │
 │    "password": "secret123"                      │
 │  }                                              │
 └──────────────────┬──────────────────────────────┘
@@ -297,7 +328,7 @@ main.cpp
 │     Pending: [tx1, tx2, tx3, tx4, tx5]          │
 │                                                 │
 │  10. Check auto-mine condition                  │
-│      if (pending.size() >= 5) {  ✓ TRUE         │
+│      if (pending.size() >= 5) {  [+] TRUE         │
 │          minePendingTransactions()              │
 │      }                                          │
 └──────────────────┬──────────────────────────────┘
@@ -331,7 +362,7 @@ main.cpp
 │                                                 │
 │      Mining... nonce=1234 hash=123abc...        │
 │      Mining... nonce=1235 hash=456def...        │
-│      Mining... nonce=1236 hash=000789...  ✓     │
+│      Mining... nonce=1236 hash=000789...  [+]     │
 │                                                 │
 │  13. Add block to chain                         │
 │      chain.push_back(newBlock)                  │
@@ -389,7 +420,7 @@ POST /api/login
      ├─ 3. Verify password
      │      inputHash = sha256("secret123")
      │      storedHash = user.passwordHash
-     │      if (inputHash == storedHash) ✓
+     │      if (inputHash == storedHash) [+]
      │
      ├─ 4. Create session
      │      Session session("alice")
@@ -532,19 +563,19 @@ GET /api/blockchain/validate
             │     │     │
             │     │     └─ Recalculate hash
             │     │         newHash = sha256(data)
-            │     │         if (newHash == storedHash) ✓
-            │     │         if (hash.startsWith("000")) ✓
+            │     │         if (newHash == storedHash) [+]
+            │     │         if (hash.startsWith("000")) [+]
             │     │
             │     └─ Check chain linkage
             │           currentBlock.previousHash == 
-            │           previousBlock.hash ✓
+            │           previousBlock.hash [+]
             │
             └─ Return valid: true/false
 ```
 
 ---
 
-## 💻 Technology Stack
+## [$] Technology Stack
 
 ### Backend (C++ with STL)
 
@@ -615,7 +646,7 @@ GET /api/blockchain/validate
 
 ---
 
-## 🚀 Installation
+## [>>] Installation
 
 ### Prerequisites
 
@@ -686,7 +717,7 @@ python3 -m http.server 8000
 
 ---
 
-## 📡 API Documentation
+## [>] API Documentation
 
 ### Authentication Endpoints
 
@@ -871,7 +902,7 @@ Authorization: Bearer <sessionId>
 
 ---
 
-## ⛓️ Blockchain Methodology
+## [&] Blockchain Methodology
 
 ### Block Structure
 
@@ -934,16 +965,16 @@ Process:
                        transactions + nonce
        b. Calculate: hash = SHA256(concatenated_data)
        c. Check: if hash starts with '000...' (difficulty zeros)
-          - YES: Mining complete! ✓
+          - YES: Mining complete! [+]
           - NO:  nonce++, go to step 2a
   
 Example (difficulty = 3):
   
-  nonce=0     hash=abc123...  ✗ (doesn't start with 000)
-  nonce=1     hash=def456...  ✗
-  nonce=2     hash=789ghi...  ✗
+  nonce=0     hash=abc123...  [-] (doesn't start with 000)
+  nonce=1     hash=def456...  [-]
+  nonce=2     hash=789ghi...  [-]
   ...
-  nonce=12456 hash=000jkl...  ✓ FOUND!
+  nonce=12456 hash=000jkl...  [+] FOUND!
 
 Result:
   - Block successfully mined
@@ -973,10 +1004,10 @@ For each block in chain (starting from block 1):
      └──────────────────────────────────┘
 
   3. If ANY check fails:
-     ⚠️  INVALID CHAIN - Tampered!
+     [!]  INVALID CHAIN - Tampered!
      
   4. If ALL checks pass:
-     ✅ VALID CHAIN - Integrity confirmed
+     [+] VALID CHAIN - Integrity confirmed
 ```
 
 ### Transaction Types
@@ -1024,7 +1055,7 @@ User Action
     └──────┬───────┘
            │
            ▼
-     Immutable ✓
+     Immutable [+]
 ```
 
 ### Auto-Mining Mechanism
@@ -1038,16 +1069,16 @@ Trigger: When pending transactions reach threshold (5 transactions)
 │  pendingTransactions.push_back(tx)              │
 │                                                 │
 │  if (pendingTransactions.size() >= 5) {         │
-│      ⚡ AUTO-MINE TRIGGERED                      │
+│      [~] AUTO-MINE TRIGGERED                      │
 │      minePendingTransactions()                  │
 │  }                                              │
 └─────────────────────────────────────────────────┘
 
 Why Auto-Mine?
-  ✓ Ensures timely block creation
-  ✓ Prevents unbounded pending queue
-  ✓ Provides consistent user experience
-  ✓ Mimics real blockchain behavior
+  [+] Ensures timely block creation
+  [+] Prevents unbounded pending queue
+  [+] Provides consistent user experience
+  [+] Mimics real blockchain behavior
 
 Adjustable Parameters:
   - Difficulty: Number of leading zeros (currently 3)
@@ -1057,9 +1088,9 @@ Adjustable Parameters:
 
 ---
 
-## 🔒 Security Features
+## [#] Security Features
 
-### 1. Password Security
+### 1. Password Security (Improved)
 
 ```
 Registration:
@@ -1067,31 +1098,50 @@ Registration:
          │
          ▼
   ┌─────────────────┐
-  │  SHA-256 Hash   │
+  │ Generate Random │
+  │    Salt (128bit)│
   └────────┬────────┘
            │
            ▼
-  Stored: "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8"
+  ┌─────────────────┐
+  │  SHA-256 Hash   │
+  │ (salt + password)│
+  └────────┬────────┘
+           │
+           ▼
+  Stored: 
+    - salt: "3a4f8c2d..."
+    - hash: "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8"
 
 Login:
   User enters: "mypassword123"
          │
          ▼
   ┌─────────────────┐
+  │ Retrieve stored │
+  │      salt       │
+  └────────┬────────┘
+           │
+           ▼
+  ┌─────────────────┐
   │  SHA-256 Hash   │
+  │ (salt + password)│
   └────────┬────────┘
            │
            ▼
   Compare with stored hash
-  If match: ✓ Authenticated
-  If no match: ✗ Rejected
+  If match: [+] Authenticated
+  If no match: [-] Rejected
 ```
 
 **Security Measures**:
-- ✓ Passwords never stored in plaintext
-- ✓ SHA-256 cryptographic hashing
-- ✓ One-way transformation
-- ⚠️ Production: Add salt for extra security
+- [+] Passwords never stored in plaintext
+- [+] SHA-256 cryptographic hashing with salt
+- [+] Unique salt per user (prevents rainbow table attacks)
+- [+] One-way transformation
+- [+] Input validation (username format, email format, password strength)
+- [+] Content sanitization (XSS prevention)
+- [!] Production: Consider bcrypt or argon2 for slower hashing
 
 ### 2. Session Management
 
@@ -1126,19 +1176,19 @@ Session Lifecycle:
                         │ Check expiration
                         │ Refresh if valid
                         ▼
-   Request processed ✓
+   Request processed [+]
 
 3. Logout:
    Delete from Redis
-   Session invalid ✗
+   Session invalid [-]
 ```
 
 **Security Features**:
-- ✓ Random 32-character hex IDs
-- ✓ 24-hour expiration
-- ✓ Auto-cleanup of expired sessions
-- ✓ Bearer token authentication
-- ✓ Session refresh on activity
+- [+] Random 32-character hex IDs
+- [+] 24-hour expiration
+- [+] Auto-cleanup of expired sessions
+- [+] Bearer token authentication
+- [+] Session refresh on activity
 
 ### 3. Blockchain Integrity
 
@@ -1169,18 +1219,46 @@ Any tampering attempt:
                │
                ▼
 ┌──────────────────────────────────┐
-│  Validation FAILS ⚠️             │
+│  Validation FAILS [!]            │
 │  Tamper detected!                │
 └──────────────────────────────────┘
 ```
 
 **Protection Mechanisms**:
-- ✓ SHA-256 hash chaining
-- ✓ Proof-of-Work validation
-- ✓ Public verification API
-- ✓ Cryptographic linking
+- [+] SHA-256 hash chaining
+- [+] Proof-of-Work validation
+- [+] Public verification API
+- [+] Cryptographic linking
 
-### 4. CORS Protection
+### 4. Input Validation & Sanitization
+
+```cpp
+// Username validation (3-20 alphanumeric + underscore)
+InputValidator::isValidUsername(username)
+
+// Email format validation
+InputValidator::isValidEmail(email)
+
+// Password strength (8+ chars, letter + number)
+InputValidator::isValidPassword(password)
+
+// Content sanitization (XSS prevention)
+content = InputValidator::sanitize(content)
+  - Escapes: < > & " ' 
+  - Prevents: <script> injection
+
+// Post content validation (1-5000 chars)
+InputValidator::isValidPostContent(content)
+```
+
+**Protection Against**:
+- [+] XSS (Cross-Site Scripting)
+- [+] SQL/NoSQL injection
+- [+] Invalid data formats
+- [+] Buffer overflow attempts
+- [+] Malformed requests
+
+### 5. CORS Protection
 
 ```cpp
 HttpResponse headers:
@@ -1189,9 +1267,26 @@ HttpResponse headers:
   Access-Control-Allow-Headers: Content-Type, Authorization
 ```
 
+**Note**: `*` is acceptable for demo. In production, specify exact domains.
+
+### 6. Configuration Security
+
+```bash
+# config.json and frontend/js/config.js are gitignored
+# Only example templates are committed
+config.example.json          # Backend config template
+frontend/js/config.example.js  # Frontend config template
+```
+
+**Best Practices**:
+- [+] Never commit actual config files
+- [+] Use environment-specific configurations
+- [+] Keep secrets in environment variables
+- [+] Separate dev/staging/production configs
+
 ---
 
-## ⚡ Performance
+## [~] Performance
 
 ### Metrics
 
@@ -1285,7 +1380,7 @@ void addTransaction(const Transaction& tx) {
 
 ---
 
-## 📂 Project Structure
+## [/] Project Structure
 
 ```
 bitea/
@@ -1388,58 +1483,58 @@ bitea/
 
 ---
 
-## 🎓 Learning Outcomes
+## [^] Learning Outcomes
 
 This project demonstrates mastery of:
 
 ### 1. C++ Programming
-- ✓ STL containers (`vector`, `map`, `set`, `shared_ptr`)
-- ✓ STL algorithms (`sort`, `find`, `transform`)
-- ✓ Memory management with smart pointers
-- ✓ Object-oriented design
-- ✓ Template usage
+- [+] STL containers (`vector`, `map`, `set`, `shared_ptr`)
+- [+] STL algorithms (`sort`, `find`, `transform`)
+- [+] Memory management with smart pointers
+- [+] Object-oriented design
+- [+] Template usage
 
 ### 2. Systems Programming
-- ✓ Socket programming (POSIX)
-- ✓ Multi-threading (`std::thread`, `std::mutex`)
-- ✓ HTTP protocol implementation
-- ✓ Request/response handling
+- [+] Socket programming (POSIX)
+- [+] Multi-threading (`std::thread`, `std::mutex`)
+- [+] HTTP protocol implementation
+- [+] Request/response handling
 
 ### 3. Blockchain Technology
-- ✓ Proof-of-Work consensus
-- ✓ Cryptographic hashing (SHA-256)
-- ✓ Block chaining and validation
-- ✓ Transaction management
-- ✓ Mining algorithms
+- [+] Proof-of-Work consensus
+- [+] Cryptographic hashing (SHA-256)
+- [+] Block chaining and validation
+- [+] Transaction management
+- [+] Mining algorithms
 
 ### 4. Full-Stack Development
-- ✓ RESTful API design
-- ✓ Single Page Application (SPA)
-- ✓ Session management
-- ✓ Database integration
-- ✓ Frontend/backend communication
+- [+] RESTful API design
+- [+] Single Page Application (SPA)
+- [+] Session management
+- [+] Database integration
+- [+] Frontend/backend communication
 
 ### 5. Software Architecture
-- ✓ Layered architecture
-- ✓ Separation of concerns
-- ✓ Design patterns
-- ✓ Scalability considerations
+- [+] Layered architecture
+- [+] Separation of concerns
+- [+] Design patterns
+- [+] Scalability considerations
 
 ---
 
-## 🤝 Contributing
+## [&] Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines.
 
 ---
 
-## 📄 License
+## [:] License
 
 MIT License - See [LICENSE](LICENSE) file
 
 ---
 
-## 🎉 Acknowledgments
+## [!] Acknowledgments
 
 **Built with**:
 - C++17 Standard Library
@@ -1454,7 +1549,7 @@ MIT License - See [LICENSE](LICENSE) file
 
 ---
 
-## 📞 Support
+## [?] Support
 
 For questions or issues:
 1. Check [QUICK_START.md](QUICK_START.md) for setup help
@@ -1464,11 +1559,11 @@ For questions or issues:
 ---
 
 **Version 1.0** - October 2025  
-**Built with ❤️ using C++, STL, JavaScript, and Blockchain Technology**
+**Built using C++, STL, JavaScript, and Blockchain Technology**
 
 ```
 ╔══════════════════════════════════════════════════════════════════╗
-║                  Thank you for using Bitea! 🚀                   ║
+║                  Thank you for using Bitea! [>>]                 ║
 ║        A demonstration of blockchain social media technology     ║
 ╚══════════════════════════════════════════════════════════════════╝
 ```
