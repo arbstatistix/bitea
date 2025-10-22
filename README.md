@@ -4,9 +4,9 @@ A fully functional decentralized social media application that combines blockcha
 
 ```
 
-                    [>>] BITEA PLATFORM [>>]                          
-                                                                   
-        Where Social Media Meets Blockchain Technology             
+                                    [>>] BITEA PLATFORM [>>]                          
+                                                                                
+                        Where Social Media Meets Blockchain Technology             
 
 ```
 
@@ -1562,9 +1562,9 @@ Twitter/X: [@siddhanthmate](https://x.com/siddhanthmate)
 **Built using C++, STL, JavaScript, and Blockchain Technology**
 
 ```
-╔══════════════════════════════════════════════════════════════════╗
-║                  Thank you for using Bitea! [>>]                 ║
-║        A demonstration of blockchain social media technology     ║
-╚══════════════════════════════════════════════════════════════════╝
+
+                                Thank you for using Bitea! [>>]                 
+                        A demonstration of blockchain social media technology     
+
 ```
 # bitea
