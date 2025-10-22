@@ -14,7 +14,9 @@ A fully functional decentralized social media application that combines blockcha
 
 **THIS IS A DEMONSTRATION/LEARNING PROJECT - NOT PRODUCTION READY**
 
-This project is designed for educational purposes to demonstrate blockchain technology, C++ development, and full-stack architecture. **Do NOT deploy this to production without implementing proper security measures.**
+This project is designed for educational purposes to demonstrate blockchain technology, C++ development, and full-stack architecture. 
+
+**Do NOT deploy this to production without implementing proper security measures.**
 
 ### Known Security Limitations:
 - [!] **Password hashing now uses salting** (improved in latest version)
@@ -362,7 +364,7 @@ main.cpp
 │                                                 │
 │      Mining... nonce=1234 hash=123abc...        │
 │      Mining... nonce=1235 hash=456def...        │
-│      Mining... nonce=1236 hash=000789...  [+]     │
+│      Mining... nonce=1236 hash=000789...  [+]   │
 │                                                 │
 │  13. Add block to chain                         │
 │      chain.push_back(newBlock)                  │
@@ -1556,7 +1558,7 @@ Twitter/X: [@siddhanthmate](https://x.com/siddhanthmate)
 
 ---
 
-**Version 1.0.1** - October 2025  
+**Version 1.0.1** - 22 October 2025  
 **Built using C++, STL, JavaScript, and Blockchain Technology**
 
 ```
