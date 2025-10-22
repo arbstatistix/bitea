@@ -1,166 +1,572 @@
-// Application State
+/*******************************************************************************
+ * APP.JS - Bitea Frontend Application Logic
+ * 
+ * PURPOSE:
+ * This is the main frontend application file that handles UI logic, state
+ * management, DOM manipulation, and user interactions for the Bitea blockchain
+ * social media platform.
+ * 
+ * APPLICATION ARCHITECTURE:
+ * - Single Page Application (SPA): Multiple views, one HTML file
+ * - State management: Global variables for user and topic data
+ * - Event-driven: User interactions trigger async API calls
+ * - DOM manipulation: Dynamic content rendering via JavaScript
+ * 
+ * INTEGRATION WITH OTHER COMPONENTS:
+ * - api.js: All backend communication via API object
+ * - index.html: DOM elements manipulated by functions here
+ * - style.css: Classes referenced for styling
+ * - localStorage: Session persistence, topic data storage
+ * 
+ * KEY FEATURES:
+ * - Authentication: Login, register, logout with session management
+ * - Social Feed: Create posts, like, comment
+ * - bitCafe: Discussion topics (localStorage-based, blockchain-ready)
+ * - Blockchain Explorer: View blocks, mine, validate chain
+ * - Statistics: Comprehensive blockchain analytics
+ * - Profile: User information display
+ * 
+ * PAGE STRUCTURE:
+ * - Login: Authentication forms
+ * - Feed: Social media posts
+ * - Topics (bitCafe): Discussion forum
+ * - Blockchain: Block explorer
+ * - Stats: Analytics dashboard
+ * - Profile: User profile
+ * 
+ * STATE MANAGEMENT:
+ * - currentUser: Currently logged-in username (global)
+ * - topicsData: Array of topics (localStorage-backed)
+ * - currentTopicId: Currently viewed topic ID
+ * 
+ * ASYNC PATTERN:
+ * Most functions are async (API calls are asynchronous)
+ * Uses async/await for cleaner promise handling
+ * Try/catch for error handling
+ * 
+ * DOM MANIPULATION:
+ * - document.getElementById(): Get specific elements
+ * - document.querySelectorAll(): Get multiple elements
+ * - innerHTML: Dynamic content rendering
+ * - classList: CSS class manipulation
+ * - Template literals: HTML generation with ${} syntax
+ * 
+ * SECURITY:
+ * - XSS Prevention: escapeHtml() for user-generated content
+ * - Input validation: Client-side (convenience) + server-side (security)
+ * - Sanitization: Backend escapes dangerous characters
+ * 
+ * BROWSER APIs USED:
+ * - DOM API: Element manipulation, event listeners
+ * - localStorage: Persistent storage
+ * - fetch (via api.js): HTTP requests
+ * - Date: Timestamp formatting
+ * - JSON: Data parsing/stringification
+ * - Promise: Async operations
+ * 
+ * REFERENCES:
+ * - DOM API: https://developer.mozilla.org/en-US/docs/Web/API/Document_Object_Model
+ * - SPA Architecture: Single-page application patterns
+ * - Modern JavaScript: ES6+ features (arrow functions, template literals, async/await)
+ ******************************************************************************/
+
+// ============================================================================
+// GLOBAL STATE (Application-Wide Variables)
+// ============================================================================
+
+/**
+ * @var {string|null} currentUser
+ * 
+ * PURPOSE: Stores currently logged-in username
+ * 
+ * STATES:
+ * - null: User not logged in
+ * - string: Username of logged-in user
+ * 
+ * USAGE:
+ * - Check authentication: if (currentUser) { ... }
+ * - Display username: Show logged-in user
+ * - Author attribution: Posts/comments by currentUser
+ * 
+ * LIFECYCLE:
+ * - Set: After successful login (checkAuth)
+ * - Cleared: After logout
+ * - Persisted: Via localStorage (session ID + username)
+ */
 let currentUser = null;
 
-// Initialize app
+// ============================================================================
+// APPLICATION INITIALIZATION
+// ============================================================================
+
+/**
+ * DOM CONTENT LOADED EVENT
+ * 
+ * PURPOSE: Initialize app after HTML fully loaded
+ * 
+ * BROWSER EVENT:
+ * Fires when DOM tree complete (before images/stylesheets finish)
+ * Safer than window.onload (waits for everything)
+ * 
+ * INITIALIZATION:
+ * 1. checkAuth(): Restore session from localStorage
+ * 2. loadFeedStats(): Load initial blockchain stats
+ * 
+ * WHY addEventListener:
+ * - Modern approach (vs. onload attribute)
+ * - Multiple listeners possible
+ * - Better separation of HTML and JavaScript
+ */
 document.addEventListener('DOMContentLoaded', () => {
-    checkAuth();
-    loadFeedStats();
+    checkAuth();        // Check if user already logged in
+    loadFeedStats();    // Load initial stats for display
 });
 
-// Page Navigation
+// ============================================================================
+// PAGE NAVIGATION (SPA Routing)
+// ============================================================================
+
+/**
+ * @function showPage
+ * @param {string} pageName - Page identifier ('feed', 'blockchain', etc.)
+ * 
+ * PURPOSE: Switches between different views in single-page app
+ * 
+ * SPA PATTERN:
+ * All "pages" exist in same HTML file
+ * Only one visible at a time (CSS class 'active')
+ * 
+ * ALGORITHM:
+ * 1. Remove 'active' class from all pages (hide all)
+ * 2. Add 'active' class to selected page (show one)
+ * 3. Load data for that page (API calls)
+ * 
+ * PAGE NAMES:
+ * - 'feed': Social media feed
+ * - 'topics': bitCafe discussion forum
+ * - 'blockchain': Block explorer
+ * - 'stats': Analytics dashboard
+ * - 'profile': User profile
+ * - 'login': Authentication page
+ * 
+ * DATA LOADING:
+ * Each page loads its own data when shown
+ * Prevents loading all data upfront (performance)
+ * 
+ * USAGE:
+ * showPage('feed');       // Show feed page
+ * onclick="showPage('blockchain')"  // From HTML
+ */
 function showPage(pageName) {
+    // Hide all pages (remove 'active' class)
     document.querySelectorAll('.page').forEach(page => {
         page.classList.remove('active');
     });
     
+    // Show selected page (add 'active' class)
     const page = document.getElementById(`${pageName}Page`);
     if (page) {
         page.classList.add('active');
         
-        // Load page data
+        // Load page-specific data
         if (pageName === 'feed') {
-            loadFeed();
-            loadFeedStats();
+            loadFeed();         // Fetch all posts
+            loadFeedStats();    // Update stat counters
         } else if (pageName === 'topics') {
-            loadTopics();
+            loadTopics();       // Load bitCafe topics
         } else if (pageName === 'blockchain') {
-            loadBlockchain();
+            loadBlockchain();   // Fetch blockchain data
         } else if (pageName === 'stats') {
-            loadStats();
+            loadStats();        // Load comprehensive statistics
         } else if (pageName === 'profile') {
-            loadProfile();
+            loadProfile();      // Load user profile
         }
     }
 }
 
-// Authentication
+// ============================================================================
+// AUTHENTICATION FUNCTIONS
+// ============================================================================
+
+/**
+ * @function checkAuth
+ * 
+ * PURPOSE: Check if user is logged in and update UI accordingly
+ * 
+ * WORKFLOW:
+ * 1. Retrieve session ID and username from localStorage
+ * 2. If both exist → user is logged in
+ * 3. Update global state (currentUser)
+ * 4. Show/hide navigation buttons
+ * 5. Show appropriate page (feed if logged in, login if not)
+ * 
+ * UI UPDATES (Logged In):
+ * - Hide "Login" button
+ * - Show "Logout" button
+ * - Show "Profile" link
+ * - Navigate to feed page
+ * 
+ * UI UPDATES (Logged Out):
+ * - Show login page
+ * 
+ * CALLED BY:
+ * - App initialization (DOMContentLoaded)
+ * - After login success
+ * - After page reload (restores session)
+ * 
+ * SESSION PERSISTENCE:
+ * localStorage persists across page reloads
+ * User stays logged in until explicit logout or session expires
+ */
 function checkAuth() {
     const sessionId = getSession();
     const username = getUsername();
     
     if (sessionId && username) {
+        // User is logged in
         currentUser = username;
+        
+        // Update navigation UI
         document.getElementById('loginBtn').style.display = 'none';
         document.getElementById('logoutBtn').style.display = 'block';
         document.getElementById('profileLink').style.display = 'block';
+        
+        // Show feed page
         showPage('feed');
     } else {
+        // User not logged in
         showPage('login');
     }
 }
 
+/**
+ * @function switchTab
+ * @param {string} tab - 'login' or 'register'
+ * 
+ * PURPOSE: Toggle between login and registration forms
+ * 
+ * UI MANIPULATION:
+ * - Updates tab button styling (active/inactive)
+ * - Shows/hides appropriate form
+ * - Clears any error messages
+ * 
+ * CALLED BY: Tab button clicks in auth page
+ */
 function switchTab(tab) {
+    // Remove active state from all tab buttons
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.classList.remove('active');
     });
     
     if (tab === 'login') {
+        // Show login form
         document.querySelector('.tab-btn:first-child').classList.add('active');
         document.getElementById('loginForm').style.display = 'flex';
         document.getElementById('registerForm').style.display = 'none';
     } else {
+        // Show registration form
         document.querySelector('.tab-btn:last-child').classList.add('active');
         document.getElementById('loginForm').style.display = 'none';
         document.getElementById('registerForm').style.display = 'flex';
     }
     
+    // Clear any previous messages
     document.getElementById('authMessage').textContent = '';
 }
 
+/**
+ * @async
+ * @function register
+ * 
+ * PURPOSE: Handle user registration form submission
+ * 
+ * WORKFLOW:
+ * 1. Extract form values (username, email, password)
+ * 2. Trim whitespace from text inputs
+ * 3. Validate all fields filled
+ * 4. Call API.register()
+ * 5. On success: Show message, switch to login tab
+ * 6. On error: Display error message
+ * 
+ * VALIDATION:
+ * Client-side: Check fields not empty (UX)
+ * Server-side: Comprehensive validation (security)
+ * 
+ * USER FEEDBACK:
+ * - Success: "Registration successful! Please login."
+ * - Auto-switch to login tab after 2 seconds
+ * - Error: Display server error message
+ */
 async function register() {
+    // Extract form values
     const username = document.getElementById('registerUsername').value.trim();
     const email = document.getElementById('registerEmail').value.trim();
     const password = document.getElementById('registerPassword').value;
     const messageEl = document.getElementById('authMessage');
     
+    // Client-side validation (empty check)
     if (!username || !email || !password) {
         showMessage(messageEl, 'Please fill in all fields', 'error');
         return;
     }
     
     try {
+        // Call backend registration API
         await API.register(username, email, password);
+        
+        // Success feedback
         showMessage(messageEl, 'Registration successful! Please login.', 'success');
+        
+        // Auto-switch to login after 2 seconds
         setTimeout(() => switchTab('login'), 2000);
+        
     } catch (error) {
+        // Display server error (validation, duplicate username, etc.)
         showMessage(messageEl, error.message, 'error');
     }
 }
 
+/**
+ * @async
+ * @function login
+ * 
+ * PURPOSE: Handle user login form submission
+ * 
+ * WORKFLOW:
+ * 1. Extract username and password from form
+ * 2. Validate fields not empty
+ * 3. Call API.login()
+ * 4. On success: Store session, update UI, redirect to feed
+ * 5. On error: Display error message
+ * 
+ * SUCCESS FLOW:
+ * 1. Receive sessionId and user data from server
+ * 2. Store in localStorage via setSession()
+ * 3. Show success message
+ * 4. After 1 second, call checkAuth() (updates UI, shows feed)
+ * 
+ * ERROR HANDLING:
+ * - Network errors: "Request failed"
+ * - Invalid credentials: "Invalid credentials" (generic for security)
+ * - Display error to user via showMessage()
+ */
 async function login() {
+    // Extract form values
     const username = document.getElementById('loginUsername').value.trim();
     const password = document.getElementById('loginPassword').value;
     const messageEl = document.getElementById('authMessage');
     
+    // Client-side validation
     if (!username || !password) {
         showMessage(messageEl, 'Please fill in all fields', 'error');
         return;
     }
     
     try {
+        // Call backend login API
         const result = await API.login(username, password);
+        
+        // Store session in localStorage
         setSession(result.sessionId, result.user.username);
+        
+        // Success feedback
         showMessage(messageEl, 'Login successful!', 'success');
+        
+        // Update UI after short delay (show success message first)
         setTimeout(() => {
-            checkAuth();
+            checkAuth();  // Updates UI, redirects to feed
         }, 1000);
+        
     } catch (error) {
+        // Display login error
         showMessage(messageEl, error.message, 'error');
     }
 }
 
+/**
+ * @async
+ * @function logout
+ * 
+ * PURPOSE: Log out current user
+ * 
+ * WORKFLOW:
+ * 1. Call API.logout() (invalidates session on server)
+ * 2. Clear localStorage (remove session + username)
+ * 3. Clear global state (currentUser = null)
+ * 4. Update navigation UI (hide logout, show login)
+ * 5. Redirect to login page
+ * 
+ * ERROR HANDLING:
+ * Logout errors logged but don't prevent local cleanup
+ * Even if server call fails, local session still cleared
+ * 
+ * UI CLEANUP:
+ * - currentUser reset to null
+ * - Session data removed from localStorage
+ * - Navigation buttons updated
+ * - Redirected to login page
+ */
 async function logout() {
     try {
+        // Invalidate session on server
         await API.logout();
     } catch (error) {
+        // Log but don't prevent logout
         console.error('Logout error:', error);
     }
     
+    // Clear local session data
     clearSession();
     currentUser = null;
+    
+    // Update navigation UI
     document.getElementById('loginBtn').style.display = 'block';
     document.getElementById('logoutBtn').style.display = 'none';
     document.getElementById('profileLink').style.display = 'none';
+    
+    // Redirect to login page
     showPage('login');
 }
 
-// Feed Functions
+// ============================================================================
+// FEED FUNCTIONS (Social Media Posts)
+// ============================================================================
+
+/**
+ * @async
+ * @function loadFeed
+ * 
+ * PURPOSE: Fetch and display all posts from backend
+ * 
+ * WORKFLOW:
+ * 1. Call API.getPosts() → fetches from MongoDB
+ * 2. displayPosts() renders HTML
+ * 3. Error handling logs to console
+ * 
+ * CALLED BY:
+ * - showPage('feed'): When feed page shown
+ * - After creating post: Refresh to show new post
+ * - After like/comment: Refresh to show updates
+ * 
+ * DATA SOURCE: Backend MongoDB (fast queries)
+ * RENDERING: Dynamic HTML via template literals
+ */
 async function loadFeed() {
     try {
+        // Fetch all posts from backend
         const posts = await API.getPosts();
+        
+        // Render posts to DOM
         displayPosts(posts);
+        
     } catch (error) {
+        // Log error (non-critical, feed just won't load)
         console.error('Error loading feed:', error);
     }
 }
 
+/**
+ * @async
+ * @function createPost
+ * 
+ * PURPOSE: Handle post creation form submission
+ * 
+ * WORKFLOW:
+ * 1. Extract content from textarea
+ * 2. Trim whitespace
+ * 3. Validate not empty
+ * 4. Call API.createPost()
+ * 5. Clear textarea
+ * 6. Refresh feed (show new post)
+ * 7. Refresh stats (update counters)
+ * 8. Show success message
+ * 
+ * DUAL STORAGE:
+ * Backend stores in:
+ * - MongoDB (fast retrieval)
+ * - Blockchain (immutable proof)
+ * 
+ * USER FEEDBACK:
+ * Success: "Post created and added to blockchain!"
+ * Error: Alert with error message
+ * 
+ * BLOCKCHAIN:
+ * Post creates Transaction, auto-mines when 5 txs accumulated
+ */
 async function createPost() {
+    // Extract and trim content
     const content = document.getElementById('postContent').value.trim();
     
+    // Validate not empty
     if (!content) {
         alert('Please enter some content');
         return;
     }
     
     try {
+        // Create post via API (stores in DB + blockchain)
         await API.createPost(content);
+        
+        // Clear textarea
         document.getElementById('postContent').value = '';
-        loadFeed();
-        loadStats();
+        
+        // Refresh UI
+        loadFeed();   // Show new post
+        loadStats();  // Update counters
+        
+        // Success feedback
         alert('Post created and added to blockchain!');
+        
     } catch (error) {
+        // Display error (validation, unauthorized, etc.)
         alert('Error creating post: ' + error.message);
     }
 }
 
+/**
+ * @function displayPosts
+ * @param {Array} posts - Array of post objects from API
+ * 
+ * PURPOSE: Renders posts as HTML cards in the feed
+ * 
+ * RENDERING STRATEGY:
+ * - Array.map(): Transform each post to HTML string
+ * - Template literals: Embed data with ${}
+ * - join(''): Concatenate all HTML strings
+ * - innerHTML: Insert into DOM
+ * 
+ * POST CARD STRUCTURE:
+ * - Header: Author and timestamp
+ * - Content: Post text (XSS-escaped)
+ * - Stats: Like count, comment count, blockchain badge
+ * - Actions: Like and comment buttons
+ * 
+ * XSS PREVENTION:
+ * escapeHtml(post.content): Escapes <, >, &, ", '
+ * Prevents malicious HTML/JavaScript injection
+ * 
+ * BLOCKCHAIN BADGE:
+ * Conditional rendering: ${post.isOnChain ? '...' : ''}
+ * Shows "[CHAIN] On Chain" if post mined into block
+ * 
+ * EVENT HANDLERS:
+ * onclick="likePost('${post.id}')"
+ * Inline event handlers with post ID parameter
+ * Alternative: addEventListener (more modern)
+ * 
+ * EMPTY STATE:
+ * If no posts, shows friendly message encouraging first post
+ */
 function displayPosts(posts) {
     const container = document.getElementById('postsContainer');
     
+    // Handle empty state
     if (!posts || posts.length === 0) {
         container.innerHTML = '<p style="text-align:center; color:white;">No posts yet. Be the first to post!</p>';
         return;
     }
     
+    // Render posts as HTML cards
     container.innerHTML = posts.map(post => `
         <div class="post-card">
             <div class="post-header">
@@ -178,36 +584,111 @@ function displayPosts(posts) {
                 <button class="btn btn-small btn-secondary" onclick="viewPost('${post.id}')">[//] Comment</button>
             </div>
         </div>
-    `).join('');
+    `).join('');  // join() converts array to single HTML string
 }
 
+/**
+ * @async
+ * @function likePost
+ * @param {string} postId - ID of post to like
+ * 
+ * PURPOSE: Like a post (adds to user's likes set)
+ * 
+ * WORKFLOW:
+ * 1. Call API.likePost(postId)
+ * 2. Backend adds username to post.likes set
+ * 3. Backend creates LIKE transaction on blockchain
+ * 4. Refresh feed to show updated like count
+ * 5. Refresh stats to update totals
+ * 
+ * IDEMPOTENT:
+ * Backend prevents duplicate likes (set ensures uniqueness)
+ * Liking twice has no additional effect
+ * 
+ * ERROR HANDLING:
+ * - 401: Not authenticated
+ * - 404: Post not found
+ * - Display error alert
+ */
 async function likePost(postId) {
     try {
+        // Like post via API
         await API.likePost(postId);
+        
+        // Refresh UI to show updated counts
         loadFeed();
         loadStats();
+        
     } catch (error) {
+        // Display error (auth, not found, etc.)
         alert('Error liking post: ' + error.message);
     }
 }
 
+/**
+ * @async
+ * @function viewPost
+ * @param {string} postId - ID of post to view/comment on
+ * 
+ * PURPOSE: View post details and optionally add comment
+ * 
+ * WORKFLOW:
+ * 1. Fetch full post details (includes comments)
+ * 2. Prompt user for comment text
+ * 3. If user enters text, submit comment
+ * 4. Refresh feed and stats
+ * 5. Show success message
+ * 
+ * UI:
+ * Uses browser prompt() for comment input
+ * Simple but not ideal UX (could use modal dialog)
+ * 
+ * VALIDATION:
+ * - Checks content exists and not only whitespace
+ * - Server validates length (1-1000 chars)
+ */
 async function viewPost(postId) {
     try {
+        // Fetch post details
         const post = await API.getPost(postId);
+        
+        // Prompt for comment
         const content = prompt('Add a comment:');
         
+        // Submit if user entered text
         if (content && content.trim()) {
             await API.commentPost(postId, content.trim());
+            
+            // Refresh UI
             loadFeed();
             loadStats();
+            
+            // Success feedback
             alert('Comment added to blockchain!');
         }
+        
     } catch (error) {
         alert('Error: ' + error.message);
     }
 }
 
-// Blockchain Functions
+// ============================================================================
+// BLOCKCHAIN FUNCTIONS (Explorer and Mining)
+// ============================================================================
+
+/**
+ * @async
+ * @function loadBlockchain
+ * 
+ * PURPOSE: Fetch blockchain and display blocks
+ * 
+ * ENDPOINT: GET /api/blockchain
+ * RENDERS: Block cards with hash, nonce, timestamp, tx count
+ * 
+ * CALLED BY:
+ * - showPage('blockchain'): When blockchain page shown
+ * - After mining: Refresh to show new block
+ */
 async function loadBlockchain() {
     try {
         const data = await API.getBlockchain();
@@ -456,18 +937,93 @@ async function loadProfile() {
     }
 }
 
-// Utility Functions
+// ============================================================================
+// UTILITY FUNCTIONS (Helpers for UI and Data Formatting)
+// ============================================================================
+
+/**
+ * @function showMessage
+ * @param {HTMLElement} element - DOM element to display message in
+ * @param {string} message - Message text to display
+ * @param {string} type - Message type ('success', 'error')
+ * 
+ * PURPOSE: Display feedback messages to user
+ * 
+ * STYLING:
+ * - Sets element class to "message success" or "message error"
+ * - CSS handles color coding (green for success, red for error)
+ * 
+ * USAGE:
+ * showMessage(messageEl, 'Registration successful!', 'success');
+ * showMessage(messageEl, 'Invalid credentials', 'error');
+ * 
+ * DOM MANIPULATION:
+ * - textContent: Safe (no HTML injection)
+ * - className: Sets CSS classes
+ * - style.display: Makes visible
+ */
 function showMessage(element, message, type) {
     element.textContent = message;
-    element.className = `message ${type}`;
+    element.className = `message ${type}`;  // 'message success' or 'message error'
     element.style.display = 'block';
 }
 
+/**
+ * @function formatTime
+ * @param {number} timestamp - Unix epoch timestamp (seconds)
+ * @returns {string} Human-readable date/time string
+ * 
+ * PURPOSE: Convert Unix timestamp to readable format
+ * 
+ * CONVERSION:
+ * 1. Multiply by 1000 (seconds → milliseconds for JavaScript Date)
+ * 2. Create Date object
+ * 3. Format using toLocaleString() (respects user's locale)
+ * 
+ * EXAMPLE OUTPUT:
+ * "10/22/2025, 3:45:30 PM" (US locale)
+ * "22/10/2025, 15:45:30" (EU locale)
+ * 
+ * USAGE: Display timestamps for posts, blocks, comments
+ * 
+ * ALTERNATIVE:
+ * Could use relative time ("2 hours ago") with libraries like moment.js
+ */
 function formatTime(timestamp) {
-    const date = new Date(timestamp * 1000);
-    return date.toLocaleString();
+    const date = new Date(timestamp * 1000);  // Unix timestamp to Date
+    return date.toLocaleString();  // Locale-aware formatting
 }
 
+/**
+ * @function escapeHtml
+ * @param {string} text - Text potentially containing HTML
+ * @returns {string} HTML-escaped text safe for display
+ * 
+ * PURPOSE: Prevents XSS (Cross-Site Scripting) attacks
+ * 
+ * ESCAPING RULES:
+ * & → &amp;    (Must escape first, it's used in other escapes)
+ * < → &lt;     (Prevents opening tags)
+ * > → &gt;     (Prevents closing tags)
+ * " → &quot;   (Prevents attribute injection)
+ * ' → &#039;   (Prevents attribute injection)
+ * 
+ * XSS ATTACK PREVENTION:
+ * User posts: "<script>alert('XSS')</script>"
+ * Without escaping: Script executes (DANGEROUS)
+ * With escaping: "&lt;script&gt;..." displayed as text (SAFE)
+ * 
+ * REGEX REPLACEMENT:
+ * /[&<>"']/g: Global search for any of these characters
+ * m => map[m]: Replace with corresponding escape sequence
+ * 
+ * CRITICAL:
+ * Always escape user-generated content before innerHTML
+ * Defense in depth: Backend also escapes (double protection)
+ * 
+ * USAGE:
+ * <div>${escapeHtml(post.content)}</div>
+ */
 function escapeHtml(text) {
     const map = {
         '&': '&amp;',
@@ -479,10 +1035,54 @@ function escapeHtml(text) {
     return text.replace(/[&<>"']/g, m => map[m]);
 }
 
-// ========== bitCafe FUNCTIONALITY ==========
+// ============================================================================
+// BITCAFE FUNCTIONALITY (Discussion Topics/Forum)
+// ============================================================================
 
-// In-memory storage for bitCups (will be replaced with blockchain backend)
+/**
+ * @var {Array} topicsData
+ * 
+ * PURPOSE: In-memory storage for bitCafe topics
+ * 
+ * DATA SOURCE:
+ * localStorage (key: 'bitea_bitcups')
+ * Persists across page reloads
+ * 
+ * STRUCTURE:
+ * Array of topic objects:
+ * {
+ *   id: 'bitcup-timestamp',
+ *   title: 'Topic title',
+ *   description: 'Optional description',
+ *   author: 'username',
+ *   timestamp: UnixTimestamp,
+ *   comments: Array<Comment>,
+ *   blockchainHash: 'pending' or block hash
+ * }
+ * 
+ * INITIALIZATION:
+ * Loads from localStorage on app start
+ * Empty array [] if no saved data
+ * 
+ * FUTURE:
+ * Will be replaced with blockchain backend storage
+ * Currently localStorage-based for offline functionality
+ */
 let topicsData = JSON.parse(localStorage.getItem('bitea_bitcups') || '[]');
+
+/**
+ * @var {string|null} currentTopicId
+ * 
+ * PURPOSE: Tracks which topic detail view is currently shown
+ * 
+ * STATES:
+ * - null: No topic being viewed (list view)
+ * - string: ID of topic being viewed (detail view)
+ * 
+ * USAGE:
+ * - Determines which view to show (list vs detail)
+ * - Used when adding comments (know which topic)
+ */
 let currentTopicId = null;
 
 // Save bitCups to localStorage
@@ -810,16 +1410,36 @@ function replyToComment(username) {
     textarea.focus();
 }
 
-// Load recent topics sidebar
+/**
+ * @function loadRecentTopicsSidebar
+ * 
+ * PURPOSE: Display recent topics in sidebar
+ * 
+ * ALGORITHM:
+ * 1. Take last 10 topics from topicsData
+ * 2. Render as clickable cards
+ * 3. Insert into sidebar DOM
+ * 
+ * SPREAD OPERATOR:
+ * [...topicsData]: Creates shallow copy
+ * Prevents mutating original array
+ * 
+ * SLICE:
+ * .slice(0, 10): Take first 10 elements
+ * 
+ * USAGE: Quick navigation to recent discussions
+ */
 function loadRecentTopicsSidebar() {
     const sidebar = document.getElementById('recentTopicsSidebar');
     const recentTopics = [...topicsData].slice(0, 10);
     
+    // Handle empty state
     if (recentTopics.length === 0) {
         sidebar.innerHTML = '<p style="color:var(--text-dim);font-size:0.85rem;">[CAFE] No bitCups brewed yet</p>';
         return;
     }
     
+    // Render topic list
     sidebar.innerHTML = recentTopics.map(topic => `
         <div class="sidebar-topic" onclick="viewTopic('${topic.id}')">
             <div class="sidebar-topic-title">${escapeHtml(topic.title)}</div>
@@ -829,4 +1449,249 @@ function loadRecentTopicsSidebar() {
         </div>
     `).join('');
 }
+
+// ============================================================================
+// END OF APP.JS
+// ============================================================================
+
+/*******************************************************************************
+ * IMPLEMENTATION NOTES:
+ * 
+ * APPLICATION ARCHITECTURE:
+ * 
+ * SINGLE PAGE APPLICATION (SPA):
+ * - One HTML file with multiple "pages" (divs)
+ * - JavaScript shows/hides pages dynamically
+ * - No full page reloads (smooth UX)
+ * - State managed in JavaScript variables
+ * 
+ * STATE MANAGEMENT:
+ * - currentUser: Global logged-in user (null if not authenticated)
+ * - topicsData: Local array of topics (localStorage-backed)
+ * - currentTopicId: Currently viewed topic (null in list view)
+ * 
+ * DATA PERSISTENCE:
+ * - localStorage: Browser storage for session and topics
+ * - Persists across page reloads
+ * - Cleared on logout or browser clear data
+ * 
+ * ASYNC PATTERNS:
+ * - async/await: Clean promise handling
+ * - try/catch: Error handling for API calls
+ * - Promise.all(): Parallel API calls (loadStats)
+ * 
+ * DOM MANIPULATION STRATEGIES:
+ * 
+ * ELEMENT SELECTION:
+ * - getElementById(): Fast, specific element by ID
+ * - querySelectorAll(): Multiple elements by selector
+ * - querySelector(): First match of selector
+ * 
+ * CONTENT RENDERING:
+ * - innerHTML: Set HTML content (use with escapeHtml!)
+ * - textContent: Set text safely (auto-escapes)
+ * - Template literals: Embed variables with ${}
+ * 
+ * DYNAMIC HTML:
+ * posts.map(post => `<div>...</div>`).join('')
+ * - map(): Transform data to HTML
+ * - join(): Array to string
+ * - innerHTML: Insert into DOM
+ * 
+ * EVENT HANDLING:
+ * - Inline: onclick="functionName()" (simple, used here)
+ * - addEventListener: More modern, better separation
+ * - Event delegation: Could optimize for many elements
+ * 
+ * SECURITY IMPLEMENTATION:
+ * 
+ * XSS PREVENTION:
+ * - escapeHtml(): All user content escaped before display
+ * - textContent vs innerHTML: Use textContent when possible
+ * - Backend sanitization: Defense in depth
+ * 
+ * AUTHENTICATION:
+ * - Session-based: Token in localStorage
+ * - Included in API calls via Authorization header
+ * - Validated on server (client-side just for UX)
+ * 
+ * INPUT VALIDATION:
+ * - Client-side: Immediate feedback (trim, empty check)
+ * - Server-side: Security validation (never trust client)
+ * - Both layers: Better UX + security
+ * 
+ * DUAL STORAGE (Posts):
+ * 
+ * BACKEND DATABASE:
+ * - Fast queries for feed loading
+ * - Indices for efficient lookups
+ * - Mutable (can update likes, comments)
+ * 
+ * BLOCKCHAIN:
+ * - Immutable proof of post creation
+ * - Transaction for each action
+ * - Auto-mines when 5 transactions pending
+ * 
+ * WHY BOTH:
+ * Database provides performance
+ * Blockchain provides integrity and proof
+ * 
+ * BITCAFE (Topics) IMPLEMENTATION:
+ * 
+ * CURRENT STATE:
+ * - localStorage-based (offline functionality)
+ * - No backend integration yet
+ * - Marked with TODO comments
+ * 
+ * FUTURE INTEGRATION:
+ * - Backend API endpoints for topics
+ * - Blockchain transactions (TOPIC_CREATE, TOPIC_COMMENT, etc.)
+ * - MongoDB storage for querying
+ * - Same dual storage as posts
+ * 
+ * FEATURES:
+ * - Create topics (bitCups)
+ * - Comment on topics (sips)
+ * - Like comments
+ * - Reshare comments (retweet-style)
+ * - @mentions in comments
+ * - Search topics
+ * 
+ * USER EXPERIENCE:
+ * 
+ * FEEDBACK MECHANISMS:
+ * - Alerts: Simple feedback (could be replaced with toasts)
+ * - Message boxes: Colored success/error messages
+ * - Auto-refresh: UI updates after actions
+ * - Loading states: Could add spinners for async operations
+ * 
+ * NAVIGATION:
+ * - Tab-based: Login vs Register
+ * - Page-based: Feed, Topics, Blockchain, Stats, Profile
+ * - Smooth transitions: CSS handles animations
+ * 
+ * DATA DISPLAY:
+ * - Posts: Card layout with author, content, stats
+ * - Blocks: Detailed blockchain information
+ * - Stats: Comprehensive analytics tables
+ * - Topics: Discussion cards with metadata
+ * 
+ * BLOCKCHAIN INTEGRATION:
+ * 
+ * TRANSACTION CREATION:
+ * Every user action creates blockchain transaction:
+ * - Register → USER_REGISTRATION
+ * - Create post → POST
+ * - Like → LIKE
+ * - Comment → COMMENT
+ * - Follow → FOLLOW
+ * 
+ * AUTO-MINING:
+ * Backend auto-mines when 5 pending transactions
+ * User sees "[CHAIN] On Chain" badge after mining
+ * 
+ * MANUAL MINING:
+ * Blockchain page has "Mine Pending Transactions" button
+ * Useful for demos, testing
+ * 
+ * VALIDATION:
+ * "Validate Chain" button checks cryptographic integrity
+ * Shows if blockchain has been tampered with
+ * 
+ * PERFORMANCE CONSIDERATIONS:
+ * 
+ * RENDERING:
+ * - Dynamic HTML generation (map + join + innerHTML)
+ * - Could be slow with thousands of posts
+ * - Optimization: Virtual scrolling, pagination
+ * 
+ * API CALLS:
+ * - Async/await prevents UI blocking
+ * - Could batch requests (reduce round trips)
+ * - Could cache responses (reduce server load)
+ * 
+ * LOCALSTORAGE:
+ * - Synchronous operations (can block)
+ * - Limited to ~5-10MB per domain
+ * - Topics stored entirely in localStorage
+ * 
+ * STATISTICS:
+ * - Promise.all(): Parallel API calls (faster)
+ * - Complex calculations in JavaScript
+ * - Could be optimized with server-side aggregation
+ * 
+ * BROWSER COMPATIBILITY:
+ * 
+ * MODERN FEATURES USED:
+ * - ES6+: arrow functions, template literals, const/let
+ * - async/await: ES2017
+ * - Optional chaining (?.): ES2020
+ * - Array methods: map, filter, find, forEach
+ * 
+ * SUPPORTED BROWSERS:
+ * - Chrome 80+ (all features)
+ * - Firefox 74+ (all features)
+ * - Safari 13.1+ (all features)
+ * - Edge 80+ (Chromium-based)
+ * 
+ * POLYFILLS NEEDED FOR OLDER BROWSERS:
+ * - fetch() polyfill for IE11
+ * - Promise polyfill for IE11
+ * - Array methods shim for very old browsers
+ * 
+ * POTENTIAL IMPROVEMENTS:
+ * 
+ * FEATURES:
+ * - Real-time updates: WebSocket for live feed
+ * - Infinite scroll: Load more posts on scroll
+ * - Image upload: Media attachments for posts
+ * - Rich text: Markdown support, formatting
+ * - Search: Full-text search for posts/topics
+ * - Notifications: Toast notifications for actions
+ * - Dark/light mode: Theme toggle
+ * - Profile editing: Change display name, bio
+ * - Direct messages: Private messaging
+ * 
+ * UX IMPROVEMENTS:
+ * - Loading spinners: Show during API calls
+ * - Optimistic updates: Update UI before server confirms
+ * - Error recovery: Retry failed requests
+ * - Form validation: Real-time validation feedback
+ * - Modal dialogs: Replace prompt() and alert()
+ * - Keyboard shortcuts: Power user features
+ * - Accessibility: ARIA labels, keyboard navigation
+ * 
+ * PERFORMANCE:
+ * - Lazy loading: Load images on demand
+ * - Virtual scrolling: Render only visible posts
+ * - Request caching: Cache API responses
+ * - Debouncing: Limit rapid API calls (search)
+ * - Service worker: Offline capability, caching
+ * 
+ * SECURITY:
+ * - Content Security Policy: Restrict inline scripts
+ * - HTTPS only: Encrypt all traffic
+ * - Input sanitization: More comprehensive escaping
+ * - Rate limiting: Prevent abuse
+ * - Session timeout: Auto-logout after inactivity
+ * 
+ * CODE ORGANIZATION:
+ * - Module pattern: Separate concerns into modules
+ * - State management: Consider Redux, MobX, Zustand
+ * - Component framework: React, Vue, Svelte
+ * - TypeScript: Type safety for large applications
+ * - Build tools: Webpack, Vite for optimization
+ * 
+ * TESTING:
+ * - Unit tests: Individual function testing (Jest)
+ * - Integration tests: UI workflow testing (Cypress, Playwright)
+ * - E2E tests: Full user journey testing
+ * - Mock API: Test without backend
+ * 
+ * MONITORING:
+ * - Error tracking: Sentry, Rollbar for production errors
+ * - Analytics: Google Analytics, custom events
+ * - Performance: Lighthouse scores, Web Vitals
+ * - User behavior: Heatmaps, session recordings
+ ******************************************************************************/
 

@@ -1,24 +1,130 @@
+<!--
+*******************************************************************************
+* INDEX.HTML - Bitea Frontend Application
+* 
+* PURPOSE:
+* Main HTML structure for the Bitea blockchain social media platform.
+* Single-page application (SPA) with multiple view sections controlled by
+* JavaScript (app.js).
+* 
+* ARCHITECTURE:
+* - Single HTML file: All "pages" in one document
+* - JavaScript-driven: app.js shows/hides sections dynamically
+* - Responsive design: Mobile-friendly layout via CSS
+* - Modern HTML5: Semantic elements, accessibility
+* 
+* INTEGRATION WITH OTHER FILES:
+* - style.css: Visual styling and layout
+* - config.js: Optional configuration (API URL, etc.)
+* - api.js: Backend communication layer
+* - app.js: Application logic and event handlers
+* 
+* PAGE STRUCTURE:
+* 1. Navigation: Top bar with page links
+* 2. Login Page: Authentication forms
+* 3. Feed Page: Social media posts
+* 4. Topics Page (bitCafe): Discussion forum
+* 5. Blockchain Page: Block explorer
+* 6. Stats Page: Analytics dashboard
+* 7. Profile Page: User information
+* 8. Create Topic Modal: Dialog for new topics
+* 9. Footer: Copyright and branding
+* 
+* SPA PATTERN:
+* All "pages" exist in DOM simultaneously
+* CSS class 'active' controls visibility (only one active at a time)
+* JavaScript (showPage function) switches active page
+* 
+* EVENT HANDLING:
+* - Inline onclick: onclick="functionName()" - Simple approach
+* - Functions defined in app.js
+* - Parameters passed via onclick="functionName('param')"
+* 
+* FORMS:
+* - No traditional form submissions (no action/method attributes)
+* - JavaScript intercepts with onclick on buttons
+* - Data extracted via getElementById().value
+* - Sent to backend via fetch API (api.js)
+* 
+* STYLING APPROACH:
+* - CSS classes: Modular, reusable (btn, card, container)
+* - Inline styles: Minimal, only for dynamic show/hide
+* - CSS variables: Theme colors, spacing (in style.css)
+* 
+* ACCESSIBILITY:
+* - lang attribute: Specifies English content
+* - Semantic HTML: nav, footer, main (implied via structure)
+* - Could improve: ARIA labels, keyboard navigation, focus management
+* 
+* BROWSER COMPATIBILITY:
+* - HTML5: All modern browsers
+* - Viewport meta: Mobile responsive
+* - Character set: UTF-8 (international characters)
+* 
+* SECURITY:
+* - XSS Prevention: app.js escapes all user content before innerHTML
+* - HTTPS: Should be served over HTTPS in production
+* - CSP: Could add Content-Security-Policy meta tag
+* 
+* REFERENCES:
+* - HTML5 Spec: https://html.spec.whatwg.org/
+* - SPA Architecture: Single-page application patterns
+* - Web Accessibility: WCAG 2.1 guidelines
+*******************************************************************************
+-->
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <!-- ===================================================================
+         META TAGS (Character Set, Viewport, Page Info)
+         =================================================================== -->
+    
+    <!-- Character encoding: UTF-8 for international characters -->
     <meta charset="UTF-8">
+    
+    <!-- Viewport: Responsive design for mobile devices
+         width=device-width: Match screen width
+         initial-scale=1.0: No zoom on page load -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- Page title: Shown in browser tab -->
     <title>Bitea - Blockchain Social Media</title>
+    
+    <!-- ===================================================================
+         STYLESHEETS
+         =================================================================== -->
+    
+    <!-- Main stylesheet with cache-busting query parameter
+         ?v=8: Forces browser to fetch new version when updated
+         Prevents stale CSS from cached version -->
     <link rel="stylesheet" href="css/style.css?v=8">
 </head>
 <body>
-    <!-- Navigation -->
+    <!-- ===================================================================
+         NAVIGATION BAR (Top-Level Site Navigation)
+         =================================================================== -->
+    
+    <!-- Navigation bar: Always visible across all pages
+         Contains: Brand, page links, auth buttons
+         JavaScript controls visibility of auth-specific links -->
     <nav class="navbar">
         <div class="container">
+            <!-- Brand: Logo and tagline -->
             <div class="nav-brand">
                 <h1>[CHAIN] Bitea</h1>
                 <span class="tagline">Decentralized Social Media</span>
             </div>
+            
+            <!-- Navigation menu: Page links
+                 onclick events: JavaScript showPage() function
+                 style="display:none": Initially hidden, controlled by checkAuth() -->
             <div class="nav-menu" id="navMenu">
                 <a href="#" onclick="showPage('feed')" class="nav-link">Feed</a>
                 <a href="#" onclick="showPage('topics')" class="nav-link">bitCafe</a>
                 <a href="#" onclick="showPage('blockchain')" class="nav-link">Blockchain</a>
                 <a href="#" onclick="showPage('stats')" class="nav-link">Stats</a>
+                
+                <!-- Conditional navigation items (shown/hidden based on auth state) -->
                 <a href="#" onclick="showPage('profile')" class="nav-link" id="profileLink" style="display:none;">Profile</a>
                 <a href="#" onclick="logout()" class="nav-link" id="logoutBtn" style="display:none;">Logout</a>
                 <a href="#" onclick="showPage('login')" class="nav-link" id="loginBtn">Login</a>
@@ -26,26 +132,62 @@
         </div>
     </nav>
 
-    <!-- Main Content -->
+    <!-- ===================================================================
+         MAIN CONTENT CONTAINER (All Pages)
+         =================================================================== -->
+    
+    <!-- Container: Centers content, provides consistent spacing -->
     <div class="container main-content">
-        <!-- Login Page -->
+        <!-- =================================================================
+             LOGIN PAGE (Authentication Forms)
+             =================================================================
+             
+             PURPOSE: User authentication via login or registration
+             
+             VISIBILITY: Active by default (class="page active")
+             Shown until user logs in, then replaced by feed
+             
+             STRUCTURE:
+             - Tab buttons: Switch between login/register forms
+             - Login form: Username + password
+             - Register form: Username + email + password
+             - Message div: Success/error feedback
+             
+             INTERACTION:
+             - Tab switch: switchTab('login'|'register') in app.js
+             - Login: login() function validates and calls API
+             - Register: register() function creates account
+             
+             FORM HANDLING:
+             - No traditional submit (preventDefault not needed)
+             - onclick on buttons triggers JavaScript functions
+             - Functions in app.js extract values and call API
+             
+             VALIDATION:
+             - Client-side: Empty check, trim whitespace
+             - Server-side: Format validation, uniqueness check
+             - Error messages displayed in authMessage div
+             ================================================================= -->
         <div id="loginPage" class="page active">
             <div class="auth-container">
                 <div class="auth-box">
                     <h2>Welcome to Bitea</h2>
                     <p class="subtitle">Where your voice lives on the blockchain forever</p>
                     
+                    <!-- Tab buttons: Toggle between login and register -->
                     <div class="tabs">
                         <button class="tab-btn active" onclick="switchTab('login')">Login</button>
                         <button class="tab-btn" onclick="switchTab('register')">Register</button>
                     </div>
 
+                    <!-- Login form: Initially visible -->
                     <div id="loginForm" class="auth-form">
                         <input type="text" id="loginUsername" placeholder="Username" class="input-field">
                         <input type="password" id="loginPassword" placeholder="Password" class="input-field">
                         <button onclick="login()" class="btn btn-primary">Login</button>
                     </div>
 
+                    <!-- Register form: Initially hidden -->
                     <div id="registerForm" class="auth-form" style="display:none;">
                         <input type="text" id="registerUsername" placeholder="Username" class="input-field">
                         <input type="email" id="registerEmail" placeholder="Email" class="input-field">
@@ -53,22 +195,54 @@
                         <button onclick="register()" class="btn btn-primary">Register</button>
                     </div>
 
+                    <!-- Message container: Success/error feedback -->
                     <div id="authMessage" class="message"></div>
                 </div>
             </div>
         </div>
 
-        <!-- Feed Page -->
+        <!-- =================================================================
+             FEED PAGE (Social Media Posts)
+             =================================================================
+             
+             PURPOSE: Main social feed - create and view posts
+             
+             VISIBILITY: Shown after login via showPage('feed')
+             
+             FEATURES:
+             - Create post: Textarea + button → blockchain transaction
+             - Stats bar: Real-time counts (posts, blocks, pending txs)
+             - Post list: Dynamic rendering via displayPosts()
+             
+             BLOCKCHAIN INTEGRATION:
+             - Posts stored in MongoDB (fast queries)
+             - Posts recorded on blockchain (immutable proof)
+             - "[CHAIN] On Chain" badge shows mined posts
+             
+             POST CARDS:
+             - Dynamically generated by app.js displayPosts()
+             - Each post: author, content, stats, action buttons
+             - Like button: Adds to blockchain, refreshes feed
+             - Comment button: Prompts for text, adds to blockchain
+             ================================================================= -->
         <div id="feedPage" class="page">
             <div class="feed-container">
+                <!-- Create post box: Textarea for new posts -->
                 <div class="create-post-box">
                     <h3>Create a Post</h3>
+                    <!-- Textarea: Multi-line input for post content
+                         id="postContent": Referenced by createPost() function
+                         placeholder: Hint text, cleared when user types -->
                     <textarea id="postContent" placeholder="What's on your mind? (This will be immortalized on the blockchain...)" class="textarea-field"></textarea>
                     <div class="post-button-container">
+                        <!-- onclick: Calls createPost() in app.js -->
                         <button onclick="createPost()" class="btn btn-primary">Post to Blockchain</button>
                     </div>
                 </div>
 
+                <!-- Stats bar: Real-time blockchain metrics
+                     Values updated by loadFeedStats() in app.js
+                     IDs used to target specific stat elements -->
                 <div class="stats-bar">
                     <div class="stat">
                         <span class="stat-label">Total Posts:</span>
@@ -84,13 +258,34 @@
                     </div>
                 </div>
 
+                <!-- Posts container: Dynamically filled by displayPosts()
+                     Empty initially, populated via innerHTML after API call -->
                 <div id="postsContainer" class="posts-container">
-                    <!-- Posts will be loaded here -->
+                    <!-- Posts will be loaded here via app.js -->
                 </div>
             </div>
         </div>
 
-        <!-- bitCafe Page -->
+        <!-- =================================================================
+             BITCAFE PAGE (Discussion Topics/Forum)
+             =================================================================
+             
+             PURPOSE: Forum-style discussions with blockchain verification
+             
+             FEATURES:
+             - Create topics (bitCups)
+             - Comment on topics (sips)
+             - Like and reshare comments
+             - @mentions support
+             - Search functionality
+             
+             LAYOUT:
+             - Main area: Topic list or detail view
+             - Sidebar: Recent topics for quick access
+             
+             CURRENT: localStorage-based (offline capability)
+             FUTURE: Backend integration with blockchain transactions
+             ================================================================= -->
         <div id="topicsPage" class="page">
             <div class="topics-layout">
                 <!-- Main Content Area -->
@@ -359,7 +554,13 @@
         </div>
     </div>
 
-    <!-- Footer -->
+    <!-- =================================================================
+         FOOTER (Site Footer - Always Visible)
+         =================================================================
+         
+         PURPOSE: Copyright, branding, credits
+         POSITION: Bottom of page (CSS handles fixed/sticky positioning)
+         ================================================================= -->
     <footer class="footer">
         <div class="container">
             <p>&copy; 2025 Bitea - Blockchain-Powered Social Media</p>
@@ -367,9 +568,273 @@
         </div>
     </footer>
 
+    <!-- =================================================================
+         JAVASCRIPT INCLUDES (Load Order Matters!)
+         =================================================================
+         
+         LOAD ORDER:
+         1. config.js: Optional configuration (API URL, storage keys)
+         2. api.js: API client and session management
+         3. app.js: Application logic (depends on api.js)
+         
+         WHY AT END OF BODY:
+         - DOM elements must exist before JavaScript accesses them
+         - Faster perceived load time (HTML visible before JS executes)
+         - Alternative: defer/async attributes on script tags
+         
+         DEPENDENCIES:
+         - app.js uses API object from api.js
+         - api.js uses window.BITEA_CONFIG from config.js (optional)
+         - All use DOM elements from this HTML
+         ================================================================= -->
     <script src="js/config.js"></script>
     <script src="js/api.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>
+
+<!--
+*******************************************************************************
+* IMPLEMENTATION NOTES:
+* 
+* SINGLE PAGE APPLICATION (SPA) ARCHITECTURE:
+* 
+* HTML STRUCTURE:
+* - All "pages" in single HTML file as <div class="page">
+* - Only one page visible at a time (CSS class 'active')
+* - JavaScript controls visibility (showPage function)
+* - No page reloads (smooth user experience)
+* 
+* BENEFITS:
+* - Fast navigation (no server round trips)
+* - Smooth transitions (CSS animations)
+* - Persistent state (no reload = keep data)
+* - Modern UX (feels like native app)
+* 
+* TRADE-OFFS:
+* - SEO: Search engines see only initial HTML (not ideal for content sites)
+* - Initial load: All HTML loaded upfront (but minimal here)
+* - Browser history: Need JavaScript routing for back/forward buttons
+* 
+* PAGE VISIBILITY PATTERN:
+* 
+* CSS (style.css):
+* .page { display: none; }        // All pages hidden by default
+* .page.active { display: block; } // Only active page visible
+* 
+* JAVASCRIPT (app.js):
+* showPage('feed'):
+* 1. Remove 'active' from all pages
+* 2. Add 'active' to feedPage
+* 3. Load feed data
+* 
+* FORM HANDLING APPROACH:
+* 
+* TRADITIONAL:
+* <form action="/api/login" method="POST">
+*   <input name="username">
+*   <button type="submit">
+* </form>
+* - Causes page reload
+* - Loses JavaScript state
+* - Not SPA-friendly
+* 
+* OUR APPROACH:
+* <div> (no form element)
+*   <input id="loginUsername">
+*   <button onclick="login()">
+* </div>
+* - JavaScript intercepts click
+* - Extracts values via getElementById
+* - Sends via fetch (api.js)
+* - No page reload
+* - Perfect for SPA
+* 
+* ID NAMING CONVENTION:
+* - Pages: "{name}Page" (feedPage, loginPage)
+* - Forms: "{action}Form" (loginForm, registerForm)
+* - Inputs: "{page}{Field}" (loginUsername, registerEmail)
+* - Containers: "{content}Container" (postsContainer, blocksContainer)
+* - Buttons: "{action}Btn" (loginBtn, logoutBtn)
+* 
+* DYNAMIC CONTENT CONTAINERS:
+* 
+* PATTERN:
+* <div id="postsContainer"></div>
+* 
+* JavaScript fills via innerHTML:
+* document.getElementById('postsContainer').innerHTML = '<div>...</div>';
+* 
+* USED FOR:
+* - postsContainer: Social media posts
+* - blocksContainer: Blockchain blocks
+* - topicsContainer: Forum topics
+* - recentTopicsSidebar: Sidebar items
+* 
+* MODAL PATTERN:
+* 
+* STRUCTURE:
+* - Overlay: Full-screen semi-transparent background
+* - Modal content: Centered dialog box
+* - Close: X button or cancel
+* 
+* VISIBILITY:
+* - style="display:none": Initially hidden
+* - JavaScript sets display:'flex' to show
+* - JavaScript sets display:'none' to hide
+* 
+* EXAMPLE: Create Topic Modal
+* showCreateTopicModal() → display:'flex'
+* hideCreateTopicModal() → display:'none'
+* 
+* BLOCKCHAIN EXPLORER:
+* 
+* PURPOSE:
+* - Transparency: View all blocks and transactions
+* - Educational: See Proof-of-Work in action
+* - Verification: Validate chain integrity
+* - Mining: Manually trigger block creation
+* 
+* FEATURES:
+* - Block list: All blocks with hash, nonce, timestamp
+* - Refresh: Reload blockchain data
+* - Mine: Trigger mining of pending transactions
+* - Validate: Check cryptographic integrity
+* - Status: Display validation results
+* 
+* STATISTICS DASHBOARD:
+* 
+* COMPREHENSIVE METRICS:
+* - Chain overview: Blocks, transactions, difficulty
+* - Performance: Block time, throughput, nonce averages
+* - Transaction distribution: By type (post, like, comment, etc.)
+* - Network health: Validity, security level, state
+* - Recent activity: Last 10 blocks table
+* 
+* DATA VISUALIZATION:
+* - Tables: Structured data presentation
+* - Percentages: Transaction type distribution
+* - Real-time: Updated after each action
+* - Promise.all(): Parallel API calls for efficiency
+* 
+* RESPONSIVE DESIGN:
+* 
+* VIEWPORT META TAG:
+* <meta name="viewport" content="width=device-width, initial-scale=1.0">
+* - width=device-width: Match device screen width
+* - initial-scale=1.0: No zoom on mobile
+* 
+* CSS APPROACH:
+* - Mobile-first: Base styles for mobile
+* - Media queries: Adaptations for larger screens
+* - Flexbox: Flexible layouts
+* - Grid: Multi-column layouts (topics sidebar)
+* 
+* ACCESSIBILITY CONSIDERATIONS:
+* 
+* CURRENT:
+* - lang="en": Specifies English content (screen readers)
+* - Semantic HTML: Some structure (nav, footer)
+* - Placeholders: Hint text for inputs
+* 
+* IMPROVEMENTS NEEDED:
+* - ARIA labels: aria-label for buttons, links
+* - Keyboard navigation: tabindex, focus management
+* - Screen reader: aria-live for dynamic content
+* - Alt text: If images added
+* - Form labels: <label for="inputId">
+* - Focus indicators: Visible focus states
+* - Color contrast: WCAG AA compliance
+* 
+* PERFORMANCE OPTIMIZATION:
+* 
+* SCRIPT LOADING:
+* - Bottom of body: HTML renders before JS executes
+* - Could add defer: <script defer src="...">
+* - Could add async: Load scripts in parallel
+* 
+* CSS:
+* - Cache busting: ?v=8 forces fresh CSS
+* - Could minify: Reduce file size
+* - Could inline critical CSS: Faster first paint
+* 
+* HTML:
+* - Minimal: No unnecessary wrapper divs
+* - Semantic: Meaningful element names
+* - Could minify: Remove comments, whitespace for production
+* 
+* IMAGES:
+* - None currently (text-based interface)
+* - If added: Lazy loading, responsive images, WebP format
+* 
+* SECURITY HEADERS (Should Add):
+* 
+* CONTENT SECURITY POLICY:
+* <meta http-equiv="Content-Security-Policy" 
+*       content="default-src 'self'; script-src 'self' 'unsafe-inline'">
+* - Restricts resource loading
+* - Prevents XSS via external scripts
+* 
+* X-FRAME-OPTIONS:
+* Prevent clickjacking (should be set by server)
+* 
+* HTTPS:
+* Must serve over HTTPS in production
+* Encrypts all traffic, protects session tokens
+* 
+* BROWSER COMPATIBILITY:
+* 
+* HTML5:
+* - All modern browsers
+* - IE11: Partial support (polyfills needed for JS)
+* 
+* CSS3:
+* - Flexbox: IE11+ (with prefixes)
+* - Grid: IE11 (limited), modern browsers full support
+* - Variables: IE not supported (fallbacks needed)
+* 
+* JAVASCRIPT:
+* - ES6+: Modern browsers only
+* - async/await: Chrome 55+, Firefox 52+, Safari 10.1+
+* - fetch: Chrome 42+, Firefox 39+, Safari 10.1+ (polyfill for IE11)
+* 
+* TESTING RECOMMENDATIONS:
+* - Cross-browser: Chrome, Firefox, Safari, Edge
+* - Mobile: iOS Safari, Chrome Android
+* - Screen sizes: Desktop (1920px), tablet (768px), mobile (375px)
+* - Accessibility: Screen reader testing, keyboard-only navigation
+* - Performance: Lighthouse audit, Page Speed Insights
+* 
+* POTENTIAL IMPROVEMENTS:
+* 
+* FEATURES:
+* - PWA: Progressive Web App (offline support, install prompt)
+* - Service worker: Cache assets, offline functionality
+* - Web manifest: App metadata for mobile install
+* - Push notifications: Real-time alerts
+* - Dark mode: Theme toggle
+* - Internationalization: Multi-language support
+* 
+* UX:
+* - Loading states: Skeletons, spinners
+* - Error boundaries: Graceful error handling
+* - Toast notifications: Better than alert()
+* - Infinite scroll: Lazy load posts
+* - Image preview: For media uploads
+* - Emoji picker: Rich content
+* 
+* SEO (if needed):
+* - Server-side rendering: Pre-render HTML
+* - Meta tags: Open Graph, Twitter Cards
+* - Sitemap: For search engines
+* - Structured data: Schema.org markup
+* 
+* DEPLOYMENT:
+* - Static hosting: GitHub Pages, Netlify, Vercel
+* - CDN: CloudFlare, AWS CloudFront
+* - Minification: Reduce file sizes
+* - Bundling: Webpack, Vite for optimization
+* - HTTPS: Let's Encrypt free certificates
+*******************************************************************************
+-->
 
