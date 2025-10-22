@@ -1534,6 +1534,13 @@ MIT License - See [LICENSE](LICENSE) file
 
 ---
 
+## [@] Author
+
+**Siddhanth Mate**  
+Twitter/X: [@siddhanthmate](https://x.com/siddhanthmate)
+
+---
+
 ## [!] Acknowledgments
 
 **Built with**:
