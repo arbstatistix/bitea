@@ -1549,15 +1549,6 @@ MIT License - See [LICENSE](LICENSE) file
 
 ---
 
-## [?] Support
-
-For questions or issues:
-1. Check [QUICK_START.md](QUICK_START.md) for setup help
-2. Review [DEMO.md](DEMO.md) for usage examples
-3. Read [ARCHITECTURE.md](ARCHITECTURE.md) for technical details
-
----
-
 **Version 1.0** - October 2025  
 **Built using C++, STL, JavaScript, and Blockchain Technology**
 
