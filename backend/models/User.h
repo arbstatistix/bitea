@@ -7,6 +7,7 @@
 #include <ctime>
 #include <sstream>
 #include <openssl/sha.h>
+#include <openssl/rand.h>
 #include <iomanip>
 
 class User {
@@ -14,6 +15,7 @@ private:
     std::string username;
     std::string email;
     std::string passwordHash;
+    std::string passwordSalt;  // Store unique salt per user
     std::string displayName;
     std::string bio;
     std::set<std::string> followers;
@@ -21,11 +23,25 @@ private:
     time_t createdAt;
     time_t lastLogin;
 
-    std::string hashPassword(const std::string& password) const {
+    // Generate a random salt
+    std::string generateSalt() const {
+        unsigned char salt[16];
+        RAND_bytes(salt, sizeof(salt));
+        
+        std::stringstream ss;
+        for(int i = 0; i < 16; i++) {
+            ss << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(salt[i]);
+        }
+        return ss.str();
+    }
+
+    // Hash password with salt (improved security)
+    std::string hashPassword(const std::string& password, const std::string& salt) const {
+        std::string saltedPassword = salt + password;
         unsigned char hash[SHA256_DIGEST_LENGTH];
         SHA256_CTX sha256;
         SHA256_Init(&sha256);
-        SHA256_Update(&sha256, password.c_str(), password.size());
+        SHA256_Update(&sha256, saltedPassword.c_str(), saltedPassword.size());
         SHA256_Final(hash, &sha256);
         
         std::stringstream ss;
@@ -40,7 +56,8 @@ public:
 
     User(const std::string& username, const std::string& email, const std::string& password)
         : username(username), email(email), displayName(username) {
-        passwordHash = hashPassword(password);
+        passwordSalt = generateSalt();
+        passwordHash = hashPassword(password, passwordSalt);
         createdAt = std::time(nullptr);
         lastLogin = std::time(nullptr);
     }
@@ -49,6 +66,7 @@ public:
     std::string getUsername() const { return username; }
     std::string getEmail() const { return email; }
     std::string getPasswordHash() const { return passwordHash; }
+    std::string getPasswordSalt() const { return passwordSalt; }
     std::string getDisplayName() const { return displayName; }
     std::string getBio() const { return bio; }
     const std::set<std::string>& getFollowers() const { return followers; }
@@ -64,15 +82,17 @@ public:
     void setDisplayName(const std::string& name) { displayName = name; }
     void setBio(const std::string& b) { bio = b; }
     void setPasswordHash(const std::string& hash) { passwordHash = hash; }
+    void setPasswordSalt(const std::string& salt) { passwordSalt = salt; }
     void updateLastLogin() { lastLogin = std::time(nullptr); }
 
-    // Password verification
+    // Password verification (now uses salt)
     bool verifyPassword(const std::string& password) const {
-        return passwordHash == hashPassword(password);
+        return passwordHash == hashPassword(password, passwordSalt);
     }
 
     void changePassword(const std::string& newPassword) {
-        passwordHash = hashPassword(newPassword);
+        passwordSalt = generateSalt();
+        passwordHash = hashPassword(newPassword, passwordSalt);
     }
 
     // Follow/Unfollow

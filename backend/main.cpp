@@ -9,6 +9,7 @@
 #include "models/User.h"
 #include "models/Post.h"
 #include "models/Session.h"
+#include "utils/InputValidator.h"
 
 class BiteaApp {
 private:
@@ -112,13 +113,34 @@ public:
 
         // Register
         server->post("/api/register", [this](const HttpRequest& req, HttpResponse& res) {
-            std::string username = getJsonValue(req.body, "username");
-            std::string email = getJsonValue(req.body, "email");
+            std::string username = InputValidator::trimWhitespace(getJsonValue(req.body, "username"));
+            std::string email = InputValidator::trimWhitespace(getJsonValue(req.body, "email"));
             std::string password = getJsonValue(req.body, "password");
 
             if (username.empty() || email.empty() || password.empty()) {
                 res.statusCode = 400;
                 res.json("{\"error\":\"Missing required fields\"}");
+                return;
+            }
+
+            // Validate username
+            if (!InputValidator::isValidUsername(username)) {
+                res.statusCode = 400;
+                res.json("{\"error\":\"Invalid username. Use 3-20 alphanumeric characters or underscores.\"}");
+                return;
+            }
+
+            // Validate email
+            if (!InputValidator::isValidEmail(email)) {
+                res.statusCode = 400;
+                res.json("{\"error\":\"Invalid email format\"}");
+                return;
+            }
+
+            // Validate password
+            if (!InputValidator::isValidPassword(password)) {
+                res.statusCode = 400;
+                res.json("{\"error\":\"Password must be 8-128 characters with at least one letter and one number\"}");
                 return;
             }
 
@@ -136,7 +158,7 @@ public:
 
             // Add to blockchain
             std::stringstream txData;
-            txData << "{\"action\":\"register\",\"username\":\"" << username << "\"}";
+            txData << "{\"action\":\"register\",\"username\":\"" << InputValidator::sanitize(username) << "\"}";
             Transaction tx(username, TransactionType::USER_REGISTRATION, txData.str());
             blockchain->addTransaction(tx);
 
@@ -146,8 +168,21 @@ public:
 
         // Login
         server->post("/api/login", [this](const HttpRequest& req, HttpResponse& res) {
-            std::string username = getJsonValue(req.body, "username");
+            std::string username = InputValidator::trimWhitespace(getJsonValue(req.body, "username"));
             std::string password = getJsonValue(req.body, "password");
+
+            // Basic input validation
+            if (username.empty() || password.empty()) {
+                res.statusCode = 401;
+                res.json("{\"error\":\"Invalid credentials\"}");
+                return;
+            }
+
+            if (!InputValidator::isValidUsername(username)) {
+                res.statusCode = 401;
+                res.json("{\"error\":\"Invalid credentials\"}");
+                return;
+            }
 
             User user;
             if (!mongodb->findUser(username, user)) {
@@ -193,12 +228,17 @@ public:
                 return;
             }
 
-            std::string content = getJsonValue(req.body, "content");
-            if (content.empty()) {
+            std::string content = InputValidator::trimWhitespace(getJsonValue(req.body, "content"));
+            
+            // Validate post content
+            if (!InputValidator::isValidPostContent(content)) {
                 res.statusCode = 400;
-                res.json("{\"error\":\"Content is required\"}");
+                res.json("{\"error\":\"Invalid content. Must be 1-5000 characters and not empty.\"}");
                 return;
             }
+
+            // Sanitize content
+            content = InputValidator::sanitize(content);
 
             // Create post
             std::string postId = username + "-" + std::to_string(std::time(nullptr));
@@ -207,8 +247,8 @@ public:
 
             // Add to blockchain
             std::stringstream txData;
-            txData << "{\"action\":\"post\",\"postId\":\"" << postId 
-                   << "\",\"author\":\"" << username << "\"}";
+            txData << "{\"action\":\"post\",\"postId\":\"" << InputValidator::sanitize(postId)
+                   << "\",\"author\":\"" << InputValidator::sanitize(username) << "\"}";
             Transaction tx(username, TransactionType::POST, txData.str());
             blockchain->addTransaction(tx);
 
@@ -284,13 +324,17 @@ public:
             }
 
             std::string postId = req.params.at("id");
-            std::string content = getJsonValue(req.body, "content");
+            std::string content = InputValidator::trimWhitespace(getJsonValue(req.body, "content"));
 
-            if (content.empty()) {
+            // Validate comment content
+            if (content.empty() || content.length() > 1000) {
                 res.statusCode = 400;
-                res.json("{\"error\":\"Comment content is required\"}");
+                res.json("{\"error\":\"Comment must be 1-1000 characters\"}");
                 return;
             }
+
+            // Sanitize content
+            content = InputValidator::sanitize(content);
 
             Post post;
             if (!mongodb->findPost(postId, post)) {
@@ -304,7 +348,7 @@ public:
 
             // Add to blockchain
             std::stringstream txData;
-            txData << "{\"action\":\"comment\",\"postId\":\"" << postId << "\"}";
+            txData << "{\"action\":\"comment\",\"postId\":\"" << InputValidator::sanitize(postId) << "\"}";
             Transaction tx(username, TransactionType::COMMENT, txData.str());
             blockchain->addTransaction(tx);
 

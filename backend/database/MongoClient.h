@@ -37,6 +37,7 @@ private:
         doc << "username" << user.getUsername()
             << "email" << user.getEmail()
             << "passwordHash" << user.getPasswordHash()
+            << "passwordSalt" << user.getPasswordSalt()
             << "displayName" << user.getDisplayName()
             << "bio" << user.getBio()
             << "joinedAt" << static_cast<int64_t>(user.getJoinedAt())
@@ -52,9 +53,18 @@ private:
         std::string username = std::string(doc["username"].get_string().value);
         std::string email = std::string(doc["email"].get_string().value);
         std::string passwordHash = std::string(doc["passwordHash"].get_string().value);
+        std::string passwordSalt = "";
+        
+        // Handle salt (for backward compatibility with old records)
+        if (doc["passwordSalt"]) {
+            passwordSalt = std::string(doc["passwordSalt"].get_string().value);
+        }
         
         User user(username, email, ""); // Create user with empty password
         user.setPasswordHash(passwordHash); // Set the stored hash
+        if (!passwordSalt.empty()) {
+            user.setPasswordSalt(passwordSalt); // Set the stored salt
+        }
         
         if (doc["displayName"]) {
             user.setDisplayName(std::string(doc["displayName"].get_string().value));
@@ -230,6 +240,7 @@ public:
             update << "$set" << bsoncxx::builder::stream::open_document
                    << "email" << user.getEmail()
                    << "passwordHash" << user.getPasswordHash()
+                   << "passwordSalt" << user.getPasswordSalt()
                    << "displayName" << user.getDisplayName()
                    << "bio" << user.getBio()
                    << "lastLogin" << static_cast<int64_t>(user.getLastLogin())

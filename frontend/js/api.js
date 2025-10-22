@@ -1,9 +1,10 @@
 // API Configuration
-const API_BASE = 'http://localhost:3000';
+// Load from config.js if available, otherwise use defaults
+const API_BASE = window.BITEA_CONFIG?.API_BASE || 'http://localhost:3000';
 
 // Local storage keys
-const SESSION_KEY = 'bitea_session';
-const USERNAME_KEY = 'bitea_username';
+const SESSION_KEY = window.BITEA_CONFIG?.STORAGE_KEYS.SESSION || 'bitea_session';
+const USERNAME_KEY = window.BITEA_CONFIG?.STORAGE_KEYS.USERNAME || 'bitea_username';
 
 // Session management
 function getSession() {
