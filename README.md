@@ -1556,7 +1556,7 @@ Twitter/X: [@siddhanthmate](https://x.com/siddhanthmate)
 
 ---
 
-**Version 1.0** - October 2025  
+**Version 1.0.1** - October 2025  
 **Built using C++, STL, JavaScript, and Blockchain Technology**
 
 ```
