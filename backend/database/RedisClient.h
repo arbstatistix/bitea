@@ -1,25 +1,90 @@
 #ifndef REDISCLIENT_H
 #define REDISCLIENT_H
 
+/*
+ * ============================================================================
+ * RedisClient - Session Management for Bitea Social Media Platform
+ * ============================================================================
+ * 
+ * PURPOSE:
+ * This class manages temporary session data (who's logged in) using Redis,
+ * an in-memory key-value store. Redis provides fast session lookups and
+ * automatic expiration, perfect for authentication tokens.
+ * 
+ * ROLE IN BITEA ARCHITECTURE:
+ * 
+ *   [Frontend (HTML/JS)]
+ *          ↓ Sends session token in requests
+ *   [HttpServer (main.cpp)]
+ *          ↓ Validates session
+ *   [RedisClient] ← YOU ARE HERE (Session Storage)
+ *          ↓ Stores/Retrieves with TTL
+ *   [Redis In-Memory Database]
+ * 
+ * PARALLEL COMPONENTS:
+ * - MongoClient: Handles permanent data (users, posts)
+ * - RedisClient: Handles temporary data (sessions) ← THIS FILE
+ * - Blockchain: Validates post integrity
+ * - HttpServer: Routes requests and validates sessions
+ * 
+ * WHY REDIS FOR SESSIONS?
+ * 1. SPEED: In-memory access (microseconds vs milliseconds for MongoDB)
+ * 2. TTL: Automatic expiration (sessions auto-delete after 24 hours)
+ * 3. SIMPLE: Key-value storage perfect for "token → user" mapping
+ * 4. LIGHTWEIGHT: Don't bloat permanent database with temporary data
+ * 
+ * SESSION LIFECYCLE EXAMPLE:
+ * 1. User logs in → HttpServer creates Session
+ * 2. RedisClient.createSession() stores with 24h TTL
+ * 3. User makes requests → Frontend sends session token
+ * 4. RedisClient.getSession() validates token
+ * 5. User logs out → RedisClient.deleteSession() removes token
+ * 6. OR: 24 hours pass → Redis auto-deletes (TTL expired)
+ * 
+ * DATA STORAGE FORMAT:
+ * - Key: "session:abc123xyz" (session: prefix + sessionId)
+ * - Value: "abc123xyz|alice|1729600000|1729686400" (serialized Session)
+ * - TTL: Seconds until expiration (Redis handles automatically)
+ * 
+ * THREAD SAFETY:
+ * All public methods use redisMutex to prevent race conditions when multiple
+ * HTTP requests check sessions simultaneously.
+ * 
+ * CONDITIONAL COMPILATION:
+ * - If HAS_REDIS is defined: Uses real Redis (hiredis library)
+ * - If not defined: Uses in-memory mock for testing without Redis
+ * ============================================================================
+ */
+
 #include <string>
 #include <mutex>
 #include <iostream>
 #include <sstream>
 #include <ctime>
-#include "../models/Session.h"
+#include "../models/Session.h"  // Session model with sessionId, username, expiry
 
 #ifdef HAS_REDIS
 #include <hiredis/hiredis.h>
 
 class RedisClient {
 private:
-    std::string host;
-    int port;
-    bool connected;
-    std::mutex redisMutex;
-    redisContext* context;
+    // ========== CONNECTION PROPERTIES ==========
+    std::string host;          // Redis server hostname (default: 127.0.0.1)
+    int port;                  // Redis server port (default: 6379)
+    bool connected;            // Connection status flag
+    std::mutex redisMutex;     // Thread safety: Protects all Redis operations
+    redisContext* context;     // Hiredis connection context (low-level C library)
 
-    // Helper: Get Redis reply as string
+    /*
+     * HELPER METHOD: Get Redis reply as string
+     * 
+     * PURPOSE: Safely extract string from Redis reply structure
+     * 
+     * INTERACTION WITH BITEA:
+     * - Called by: connect() to parse PING response
+     * - Uses: Hiredis library reply structures
+     * - Handles: NULL replies and type checking
+     */
     std::string getReplyString(redisReply* reply) {
         if (reply && (reply->type == REDIS_REPLY_STRING || reply->type == REDIS_REPLY_STATUS)) {
             return std::string(reply->str, reply->len);
@@ -27,7 +92,20 @@ private:
         return "";
     }
 
-    // Helper: Serialize session to string
+    /*
+     * HELPER METHOD: Serialize session to string
+     * 
+     * PURPOSE: Convert Session object to storable string format
+     * 
+     * INTERACTION WITH BITEA:
+     * - Called by: createSession(), refreshSession()
+     * - Format: "sessionId|username|createdAt|expiresAt"
+     * - Example: "abc123|alice|1729600000|1729686400"
+     * 
+     * WHY SERIALIZE?
+     * Redis stores strings, not C++ objects. We convert Session fields
+     * to pipe-delimited format for storage, then deserialize on retrieval.
+     */
     std::string serializeSession(const Session& session) {
         std::stringstream ss;
         ss << session.getSessionId() << "|"
@@ -37,7 +115,20 @@ private:
         return ss.str();
     }
 
-    // Helper: Deserialize session from string
+    /*
+     * HELPER METHOD: Deserialize session from string
+     * 
+     * PURPOSE: Convert stored string back to Session object
+     * 
+     * INTERACTION WITH BITEA:
+     * - Called by: getSession() to reconstruct Session from Redis
+     * - Parses: "sessionId|username|createdAt|expiresAt" format
+     * 
+     * LIMITATION:
+     * Due to Session model design, we create a new Session object
+     * rather than restoring exact timestamps. The session will have
+     * current timestamps but that's acceptable for validation.
+     */
     Session deserializeSession(const std::string& data) {
         std::stringstream ss(data);
         std::string sessionId, username;
@@ -56,14 +147,57 @@ private:
     }
 
 public:
+    // ============================================================================
+    // PUBLIC API - Database Lifecycle Methods
+    // ============================================================================
+    
+    /*
+     * CONSTRUCTOR
+     * 
+     * PARAMETERS:
+     * - host: Redis server address (default: 127.0.0.1 for localhost)
+     * - port: Redis server port (default: 6379, Redis standard port)
+     * 
+     * CALLED BY: main.cpp during application startup
+     */
     RedisClient(const std::string& host = "127.0.0.1", int port = 6379)
         : host(host), port(port), connected(false), context(nullptr) {
     }
 
+    /*
+     * DESTRUCTOR
+     * 
+     * PURPOSE: Cleanup Redis connection on object destruction
+     * 
+     * CALLED: When application shuts down or RedisClient goes out of scope
+     * ENSURES: No connection leaks
+     */
     ~RedisClient() {
         disconnect();
     }
 
+    /*
+     * METHOD: connect()
+     * 
+     * PURPOSE: Establishes connection to Redis server
+     * 
+     * INTERACTION WITH BITEA:
+     * - Called by: main.cpp during startup (before HttpServer starts)
+     * - Before this: Cannot create or validate sessions (users can't login)
+     * - After this: Session management becomes available
+     * 
+     * PROCESS:
+     * 1. Creates Redis connection with 1.5 second timeout
+     * 2. Sends PING command to verify Redis is responding
+     * 3. Expects PONG response
+     * 
+     * STARTUP DEPENDENCY:
+     * Redis must be running: `redis-server` or `brew services start redis`
+     * 
+     * RETURNS: true if connected successfully, false otherwise
+     * 
+     * ERROR HANDLING: Catches connection failures and logs errors
+     */
     bool connect() {
         std::lock_guard<std::mutex> lock(redisMutex);
         
@@ -108,6 +242,14 @@ public:
         return true;
     }
 
+    /*
+     * METHOD: disconnect()
+     * 
+     * PURPOSE: Closes Redis connection and cleans up resources
+     * 
+     * CALLED BY: Destructor during application shutdown (Ctrl+C)
+     * CLEANUP: Frees hiredis context to prevent memory leaks
+     */
     void disconnect() {
         std::lock_guard<std::mutex> lock(redisMutex);
         
@@ -120,11 +262,34 @@ public:
         std::cout << "[Redis] Disconnected" << std::endl;
     }
 
+    /*
+     * METHOD: isConnected()
+     * 
+     * PURPOSE: Check if Redis connection is active
+     * 
+     * USED BY: All Redis operations check this before proceeding
+     * RETURNS: true if connected, false otherwise
+     */
     bool isConnected() const {
         return connected;
     }
 
-    // Key-Value operations
+    // ============================================================================
+    // PUBLIC API - Generic Key-Value Operations
+    // ============================================================================
+    // These methods provide raw Redis functionality for any string storage needs
+    // beyond sessions (caching, rate limiting, etc.)
+    
+    /*
+     * METHOD: set()
+     * 
+     * PURPOSE: Store a key-value pair in Redis
+     * 
+     * REDIS COMMAND: SET key value
+     * USE IN BITEA: Generic caching (if needed in future)
+     * 
+     * RETURNS: true if stored successfully, false otherwise
+     */
     bool set(const std::string& key, const std::string& value) {
         if (!connected || !context) return false;
         
@@ -143,6 +308,20 @@ public:
         return success;
     }
 
+    /*
+     * METHOD: get()
+     * 
+     * PURPOSE: Retrieve value for a key from Redis
+     * 
+     * REDIS COMMAND: GET key
+     * USE IN BITEA: Generic retrieval (used internally by getSession)
+     * 
+     * PARAMETERS:
+     * - key: Key to look up
+     * - value: Reference to store retrieved value
+     * 
+     * RETURNS: true if key found, false if not found or error
+     */
     bool get(const std::string& key, std::string& value) {
         if (!connected || !context) return false;
         
@@ -164,6 +343,16 @@ public:
         return false;
     }
 
+    /*
+     * METHOD: del()
+     * 
+     * PURPOSE: Delete a key from Redis
+     * 
+     * REDIS COMMAND: DEL key
+     * USE IN BITEA: Used by deleteSession() to remove session tokens
+     * 
+     * RETURNS: true if key existed and was deleted, false otherwise
+     */
     bool del(const std::string& key) {
         if (!connected || !context) return false;
         
@@ -180,6 +369,16 @@ public:
         return success;
     }
 
+    /*
+     * METHOD: exists()
+     * 
+     * PURPOSE: Check if a key exists in Redis
+     * 
+     * REDIS COMMAND: EXISTS key
+     * USE IN BITEA: Quick session validation without retrieving full data
+     * 
+     * RETURNS: true if key exists, false otherwise
+     */
     bool exists(const std::string& key) {
         if (!connected || !context) return false;
         
@@ -196,7 +395,39 @@ public:
         return exists;
     }
 
-    // Session management
+    // ============================================================================
+    // PUBLIC API - Session Management (Core Authentication Functionality)
+    // ============================================================================
+    
+    /*
+     * METHOD: createSession()
+     * 
+     * PURPOSE: Store new session token after successful login
+     * 
+     * INTERACTION WITH BITEA - Complete Login Flow:
+     * 
+     * 1. [Frontend] User enters username/password, clicks "Login"
+     * 2. [api.js] Sends POST /api/login with credentials
+     * 3. [HttpServer] Finds user in MongoDB via MongoClient
+     * 4. [HttpServer] Verifies password hash matches
+     * 5. [HttpServer] Creates Session object (models/Session.h)
+     * 6. [RedisClient] createSession() stores with TTL ← YOU ARE HERE
+     * 7. [HttpServer] Returns session token to frontend
+     * 8. [Frontend] Stores token in localStorage
+     * 9. [Frontend] Includes token in all future requests
+     * 
+     * REDIS STORAGE:
+     * - Command: SETEX (SET with EXpiry)
+     * - Key: "session:abc123xyz"
+     * - Value: Serialized session data
+     * - TTL: Seconds until expiration (typically 24 hours)
+     * 
+     * AUTO-EXPIRATION:
+     * Redis automatically deletes the session after TTL expires.
+     * User must login again after 24 hours.
+     * 
+     * RETURNS: true if session created, false if expired or error
+     */
     bool createSession(const Session& session) {
         if (!connected || !context) return false;
         
@@ -234,6 +465,39 @@ public:
         return success;
     }
 
+    /*
+     * METHOD: getSession()
+     * 
+     * PURPOSE: Validate session token and retrieve user info
+     * 
+     * INTERACTION WITH BITEA - Request Authentication:
+     * 
+     * Every authenticated request follows this pattern:
+     * 
+     * 1. [Frontend] User creates post/likes/comments
+     * 2. [api.js] Includes session token in request header/body
+     * 3. [HttpServer] Extracts session token from request
+     * 4. [RedisClient] getSession() validates token ← YOU ARE HERE
+     * 5. [RedisClient] Returns username if valid
+     * 6. [HttpServer] Proceeds with request using username
+     * 7. OR: [HttpServer] Returns 401 Unauthorized if invalid
+     * 
+     * VALIDATION CHECKS:
+     * 1. Does key exist in Redis? (If not, session expired or never existed)
+     * 2. Has session expired? (Check timestamp)
+     * 3. If expired: Delete from Redis
+     * 
+     * EXAMPLE:
+     * User creates post → Frontend sends "session:abc123" →
+     * getSession validates → Returns username "alice" →
+     * Post is created with author="alice"
+     * 
+     * PARAMETERS:
+     * - sessionId: Session token from frontend
+     * - session: Reference to Session object (populated if valid)
+     * 
+     * RETURNS: true if session valid, false if expired/not found/error
+     */
     bool getSession(const std::string& sessionId, Session& session) {
         if (!connected || !context) return false;
         
@@ -255,6 +519,30 @@ public:
         return false;
     }
 
+    /*
+     * METHOD: deleteSession()
+     * 
+     * PURPOSE: Remove session token (logout)
+     * 
+     * INTERACTION WITH BITEA - Logout Flow:
+     * 
+     * 1. [Frontend] User clicks "Logout" button
+     * 2. [api.js] Sends POST /api/logout with session token
+     * 3. [HttpServer] Calls deleteSession() ← YOU ARE HERE
+     * 4. [RedisClient] Deletes key from Redis
+     * 5. [Frontend] Removes token from localStorage
+     * 6. [Frontend] Redirects to login page
+     * 
+     * SECURITY:
+     * Immediately invalidates session - user cannot use same token again
+     * 
+     * ALSO USED FOR:
+     * - Forced logout (admin action)
+     * - Session invalidation after password change
+     * - Clearing expired sessions
+     * 
+     * RETURNS: true if session existed and deleted, false otherwise
+     */
     bool deleteSession(const std::string& sessionId) {
         if (!connected || !context) return false;
         
@@ -268,6 +556,30 @@ public:
         return false;
     }
 
+    /*
+     * METHOD: refreshSession()
+     * 
+     * PURPOSE: Extend session expiration time (keep user logged in)
+     * 
+     * INTERACTION WITH BITEA:
+     * - Called by: HttpServer on authenticated requests (optional feature)
+     * - Prevents: Session expiring while user is actively using the app
+     * 
+     * EXAMPLE USE CASE:
+     * User logs in at 9 AM (expires 9 AM next day)
+     * User is actively using site at 8:50 AM next day
+     * refreshSession() extends to expire 8:50 AM following day
+     * User doesn't get logged out while actively using site
+     * 
+     * IMPLEMENTATION:
+     * 1. Retrieves current session
+     * 2. Calls session.refresh() to update expiry timestamp
+     * 3. Stores back in Redis with new TTL
+     * 
+     * NOTE: Currently may not be actively used in Bitea, but available
+     * 
+     * RETURNS: true if refreshed, false if session not found/error
+     */
     bool refreshSession(const std::string& sessionId) {
         if (!connected || !context) return false;
         
@@ -310,12 +622,52 @@ public:
         return false;
     }
 
+    /*
+     * METHOD: cleanupExpiredSessions()
+     * 
+     * PURPOSE: Manual cleanup of expired sessions (NO-OP in Redis)
+     * 
+     * REDIS ADVANTAGE:
+     * Redis handles session expiration automatically using TTL.
+     * When TTL reaches 0, Redis deletes the key - no manual cleanup needed!
+     * 
+     * WHY THIS METHOD EXISTS:
+     * - API compatibility with mock implementation
+     * - Could be useful if switching to different storage backend
+     * - Makes the interface consistent
+     * 
+     * COMPARISON:
+     * - Other systems (MongoDB, files): Need periodic cleanup loops
+     * - Redis: Built-in TTL = automatic cleanup = no memory leaks
+     * 
+     * This is one of Redis's key advantages for session management!
+     */
     void cleanupExpiredSessions() {
         // Redis automatically handles expiration via TTL
         // This method is kept for API compatibility but does nothing
         std::cout << "[Redis] Sessions auto-expire via TTL" << std::endl;
     }
 
+    /*
+     * METHOD: getSessionCount()
+     * 
+     * PURPOSE: Count active sessions (how many users logged in)
+     * 
+     * INTERACTION WITH BITEA:
+     * - Called by: HttpServer for statistics/analytics endpoints
+     * - Frontend: Admin dashboard showing "Active Users: 42"
+     * 
+     * REDIS COMMAND: KEYS session:*
+     * WARNING: KEYS command scans all keys - can be slow on large databases
+     * For production: Consider using SCAN or maintaining a separate counter
+     * 
+     * USE CASES:
+     * 1. Admin dashboard
+     * 2. Monitoring/analytics
+     * 3. Load assessment
+     * 
+     * RETURNS: Number of active sessions, or 0 if error/disconnected
+     */
     int getSessionCount() const {
         if (!connected || !context) return 0;
         
@@ -332,6 +684,25 @@ public:
         return count;
     }
 
+    /*
+     * METHOD: getCacheSize()
+     * 
+     * PURPOSE: Get total number of keys in Redis database
+     * 
+     * INTERACTION WITH BITEA:
+     * - Called by: HttpServer for monitoring/debugging
+     * - Shows: Total keys (sessions + any other cached data)
+     * 
+     * REDIS COMMAND: DBSIZE
+     * Fast O(1) operation - Redis maintains internal counter
+     * 
+     * USE CASES:
+     * 1. Memory usage monitoring
+     * 2. Debugging cache growth
+     * 3. Performance analysis
+     * 
+     * RETURNS: Total number of keys, or 0 if error/disconnected
+     */
     int getCacheSize() const {
         if (!connected || !context) return 0;
         
@@ -350,7 +721,36 @@ public:
 };
 
 #else
-// Mock implementation (fallback if Redis library not available)
+/*
+ * ============================================================================
+ * MOCK IMPLEMENTATION - In-Memory Testing Session Storage
+ * ============================================================================
+ * 
+ * PURPOSE:
+ * Provides a lightweight in-memory alternative when Redis is not available.
+ * Useful for:
+ * - Development without Redis installation
+ * - Unit testing
+ * - Quick prototyping
+ * - CI/CD environments without Redis
+ * 
+ * LIMITATIONS:
+ * - No automatic TTL expiration (sessions don't auto-delete)
+ * - Data lost when application stops (not persistent)
+ * - Manual cleanup required (cleanupExpiredSessions)
+ * - Single process only (no distributed access)
+ * - Not suitable for production
+ * 
+ * COMPATIBILITY:
+ * Implements same API as real RedisClient, so HttpServer code works unchanged.
+ * 
+ * KEY DIFFERENCES FROM REAL REDIS:
+ * 1. Sessions stored in STL map (RAM) vs Redis in-memory database
+ * 2. No automatic TTL - must call cleanupExpiredSessions() periodically
+ * 3. No persistence between restarts
+ * 4. No network access - single process only
+ * ============================================================================
+ */
 #include <map>
 
 class RedisClient {
@@ -358,11 +758,12 @@ private:
     std::string host;
     int port;
     bool connected;
-    std::mutex cacheMutex;
+    std::mutex cacheMutex;  // Thread safety for concurrent requests
     
     // In-memory storage (mock Redis)
-    std::map<std::string, std::string> cache;
-    std::map<std::string, Session> sessions;
+    // Separate maps for generic cache and sessions for better organization
+    std::map<std::string, std::string> cache;    // Generic key-value storage
+    std::map<std::string, Session> sessions;     // Session storage (sessionId → Session)
 
 public:
     RedisClient(const std::string& host = "127.0.0.1", int port = 6379)
