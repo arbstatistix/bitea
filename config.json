@@ -1,0 +1,23 @@
+{
+  "server": {
+    "port": 3000,
+    "host": "localhost"
+  },
+  "blockchain": {
+    "difficulty": 3,
+    "maxTransactionsPerBlock": 5,
+    "miningReward": 100
+  },
+  "mongodb": {
+    "connectionString": "mongodb://localhost:27017",
+    "databaseName": "bitea"
+  },
+  "redis": {
+    "host": "127.0.0.1",
+    "port": 6379
+  },
+  "session": {
+    "expirationSeconds": 86400
+  }
+}
+
