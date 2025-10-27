@@ -1,0 +1,50 @@
+# Build artifacts
+build/
+# *.o
+# *.out
+# *.exe
+bitea_server
+
+# User-specific startup script (use start.example.sh as template)
+start.sh
+
+# CMake
+# CMakeFiles/
+# CMakeCache.txt
+# cmake_install.cmake
+# Makefile.cmake
+# *.cmake
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Dependencies
+node_modules/
+# *.log
+
+# Database
+*.db
+data/
+
+# Redis
+# dump.rdb
+
+# Configuration (keep example files)
+# config.json
+# frontend/js/config.js
+# *.env
+# .env
+# .env.*
+# !.env.example
+# !config.example.json
+# !config.example.js
+
+
